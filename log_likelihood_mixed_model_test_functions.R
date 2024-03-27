@@ -296,6 +296,24 @@ find_remle_parameters(init_params = c(1,1), design_matrices = design_matrices, s
 
 
 
+#Optimize omega matrix calculation
+n_clusters = 1000
+n_individuals_in_cluster = 300
+large_dataset <- large_dataset_generator(n_clusters, n_individuals_in_cluster, seed = 1)
+
+sigma2_vec <- c(1.5,2,2.5)
+semi_def_matrices <- large_dataset$semi_def_matrices
+
+semi_def_matrix_list <- semi_def_matrices[[1]]
+
+
+
+
+microbenchmark(omega_func(semi_def_matrix_list, sigma2_vec), omega_func_test(semi_def_matrix_list, sigma2_vec))
+
+
+
+
 
 
 

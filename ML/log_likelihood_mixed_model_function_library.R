@@ -119,7 +119,7 @@ large_dataset_generator <- function(n_clusters, n_individuals_in_cluster, seed =
   
   klasser <- rep(seq(1,n_clusters),each = n_individuals_in_cluster)
   subklasser <- rep(seq(1,n_clusters*2), each = n_individuals_in_cluster/2)
-  y <- klasser + rnorm(n_individuals_in_cluster* n_clusters, mean = 1, sd = 1) + subklasser
+  y <- sqrt(klasser) + rnorm(n_individuals_in_cluster* n_clusters, mean = 1, sd = 1) + subklasser
   
   DF <- data.frame(y = y, klasse = klasser, subklasse = subklasser)
   
@@ -142,6 +142,44 @@ large_dataset_generator <- function(n_clusters, n_individuals_in_cluster, seed =
 
 
 #-------------------------------------------
+#       Log likelihood functions
+#-------------------------------------------
+
+
+log_likelihood_block <- function(design_matrix, semi_def_matrix, outcomes, parameters){
+  
+  #Determining n_i
+  n_i <- nrow(design_matrix)
+  
+  mean_vec <- parameters[1:ncol(design_matrix)]
+  sigma2_vec <- parameters[(ncol(design_matrix) + 1):length(parameters)]
+  
+  
+  #Calculating inverse covariance matrix
+  omega <- omega_func(semi_def_matrix, sigma2_vec)
+  
+  #Inverse omega
+  omega_inv <- chol2inv(chol(omega))
+  
+  
+  #Calculating log-likelihood
+  res <- -n_i/2 * log(2 * pi) - 1/2 * log(det(omega)) - 1/2 * t(outcomes - design_matrix %*% mean_vec) %*% omega_inv %*% (outcomes - design_matrix %*% mean_vec)
+  
+  #Returning log-likelihood
+  return(res)
+}
+
+log_likelihood <- function(design_matrices, semi_def_matrices, outcome_list, parameters){
+  
+  #Applying log-likehood function to each element of lists, parameter vector and sigma vector is the same for each individual
+  res <- Map(log_likelihood_block, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(parameters))
+  
+  return(Reduce('+', res))
+}
+
+
+
+#-------------------------------------------
 #   Helper functions for calculations
 #-------------------------------------------
 
@@ -158,6 +196,8 @@ omega_func <- function(semi_def_matrix, sigma2_vec){
   
   return(omega)
 }
+
+
 
 
 
@@ -216,56 +256,17 @@ Py_func <- function(omega_inv, outcomes, design_matrix, beta){
 #-------------Calculating scores------------------- (27.10)
 parameter_score <- function(design_matrix, semi_def_matrix, omega_inv, Py, outcomes, beta, sigma2){
   
-  score_beta <- crossprod(design_matrix, omega_inv) %*% (outcomes - design_matrix %*% beta)
+  score_beta <- t(design_matrix) %*% omega_inv %*% (outcomes - design_matrix %*% beta)
+  
+  t_Py <- t(Py)
   
   score_sigma <- sapply(seq_along(semi_def_matrix), function(i) {
-    -0.5 * sum(omega_inv * semi_def_matrix[[i]]) + 0.5 * t(Py) %*% semi_def_matrix[[i]] %*% Py
+    -0.5 * sum(omega_inv * semi_def_matrix[[i]]) + 0.5 * t_Py %*% semi_def_matrix[[i]] %*% Py
   })
   
   score <- c(score_beta, score_sigma)
   
   return(score)
-}
-
-
-
-
-#-------------------------------------------
-#       Log likelihood functions
-#-------------------------------------------
-
-
-log_likelihood_block <- function(design_matrix, semi_def_matrix, outcomes, parameters){
-  
-  #Determining n_i
-  n_i <- nrow(design_matrix)
-  
-  mean_vec <- parameters[1:ncol(design_matrix)]
-  sigma2_vec <- parameters[(ncol(design_matrix) + 1):length(parameters)]
-  
-  
-  #Calculating inverse covariance matrix
-  omega <- omega_func(semi_def_matrix, sigma2_vec)
-  
-  #Inverse omega
-  omega_inv <- chol2inv(chol(omega))
-  
-  
-  #Calculating log-likelihood
-  res <- -n_i/2 * log(2 * pi) - 1/2 * log(det(omega)) - 1/2 * t(outcomes - design_matrix %*% mean_vec) %*% omega_inv %*% (outcomes - design_matrix %*% mean_vec)
-  
-  #Returning log-likelihood
-  return(res)
-}
-
-
-
-log_likelihood <- function(design_matrices, semi_def_matrices, outcome_list, parameters){
-  
-  #Applying log-likehood function to each element of lists, parameter vector and sigma vector is the same for each individual
-  res <- Map(log_likelihood_block, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(parameters))
-  
-  return(Reduce('+', res))
 }
 
 
@@ -296,7 +297,7 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
   
   
   #-------------Calculating mean value parameters----- (27.21)
-  M <- crossprod(design_matrix, omega_inv) %*% design_matrix
+  M <- t(design_matrix) %*% omega_inv %*% design_matrix
   
   
   
@@ -332,7 +333,6 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
   
   for (iter in 1:max_iter) {
     print(iter)
-    
     
     out <- Map(score_fisher_function, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(init_params))
     

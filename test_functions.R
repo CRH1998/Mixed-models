@@ -1,7 +1,7 @@
 
 
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 1000
+n_clusters = 5000
 n_individuals_in_cluster = 10
 
 
@@ -35,4 +35,5 @@ end <- Sys.time()
 paste0('Own function time: ', end - start)
 
 
-
+#4.35145497322083
+#3.97797608375549

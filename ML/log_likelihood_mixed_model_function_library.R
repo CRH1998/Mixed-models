@@ -119,7 +119,7 @@ large_dataset_generator <- function(n_clusters, n_individuals_in_cluster, seed =
   
   klasser <- rep(seq(1,n_clusters),each = n_individuals_in_cluster)
   subklasser <- rep(seq(1,n_clusters*2), each = n_individuals_in_cluster/2)
-  y <- log(klasser) * rnorm(n_individuals_in_cluster* n_clusters, mean = 1, sd = 1) * sqrt(subklasser)
+  y <- klasser + rnorm(n_individuals_in_cluster* n_clusters, mean = 1, sd = 1) + subklasser
   
   DF <- data.frame(y = y, klasse = klasser, subklasse = subklasser)
   

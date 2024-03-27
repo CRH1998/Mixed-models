@@ -1,7 +1,7 @@
 
 
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 100
+n_clusters = 1000
 n_individuals_in_cluster = 10
 
 

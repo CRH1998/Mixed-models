@@ -1,8 +1,8 @@
 #Profiling algorithm
 
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 1000
-n_individuals_in_cluster = 10
+n_clusters = 100000
+n_individuals_in_cluster = 50
 
 
 #Generate large dataset
@@ -14,15 +14,14 @@ design_matrices <- large_dataset$design_matrices
 semi_def_matrices <- large_dataset$semi_def_matrices
 outcome <- large_dataset$outcome_list
 
+DF <- large_dataset$DF
+model <- lme4::lmer(y ~ 1 + (1|klasse) + (1|subklasse), data=DF, REML=F)
+summary_model <- summary(model)
+
 #Run and profile ML-algorithm
 
-Rprof()
-Rprof(NULL)
-
-find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
+find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 1)
 
 
-omega_func(semi_def_matrix_list, sigma2_vec)
-omega_func_test(semi_def_matrix_list, sigma2_vec)
 
-summaryRprof()
+#find_remle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 0.1)

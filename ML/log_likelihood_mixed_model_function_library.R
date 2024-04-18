@@ -6,6 +6,8 @@ library(lme4)                 # For mixed model
 library(microbenchmark)       # For testing function speed
 library(psych)                # For calculating the trace
 library(profvis)              # For evaluating performance of code
+library(foreach)              # For parallel computation
+library(doParallel)           # For parallel computation
 
 
 
@@ -202,15 +204,28 @@ omega_func <- function(semi_def_matrix, sigma2_vec){
 
 
 # Multiply list by matrix
-matrix_mult <- function(matrix1){
-  return(function(matrix2){matrix1 %*% matrix2})
-}
-
 multiply_list_by_matrix <- function(matrix, list){
+  
+  matrix_mult <- function(matrix1){
+    return(function(matrix2){matrix1 %*% matrix2})
+  }
   
   matrix_mult_matrix <- matrix_mult(matrix)
   
   return(lapply(list, matrix_mult_matrix))
+}
+
+
+# Multiply list by matrix and take trace of each matrix product
+tr_multiply_list_by_matrix <- function(matrix, list){
+  
+  tr_matrix_mult <- function(matrix1){
+    return(function(matrix2){sum(matrix1 * matrix2)})
+  }
+  
+  tr_matrix_mult_matrix <- tr_matrix_mult(matrix)
+  
+  return(lapply(list, tr_matrix_mult_matrix))
 }
 
 
@@ -230,6 +245,7 @@ S_matrix_function <- function(semi_def_matrix, omega_inv){
   
   
   A <- multiply_list_by_matrix(omega_inv, semi_def_matrix)
+  
   
   S <- matrix(data = NA, nrow = length(semi_def_matrix), ncol = length(semi_def_matrix))
   
@@ -256,12 +272,12 @@ Py_func <- function(omega_inv, outcomes, design_matrix, beta){
 #-------------Calculating scores------------------- (27.10)
 parameter_score <- function(design_matrix, semi_def_matrix, omega_inv, Py, outcomes, beta, sigma2){
   
-  score_beta <- t(design_matrix) %*% omega_inv %*% (outcomes - design_matrix %*% beta)
+  score_beta <- t(design_matrix) %*% (omega_inv %*% (outcomes - design_matrix %*% beta))
   
   t_Py <- t(Py)
   
   score_sigma <- sapply(seq_along(semi_def_matrix), function(i) {
-    -0.5 * sum(omega_inv * semi_def_matrix[[i]]) + 0.5 * t_Py %*% semi_def_matrix[[i]] %*% Py
+    0.5 * (-sum(omega_inv * semi_def_matrix[[i]]) + ((t_Py %*% semi_def_matrix[[i]]) %*% Py))
   })
   
   score <- c(score_beta, score_sigma)
@@ -281,8 +297,8 @@ parameter_score <- function(design_matrix, semi_def_matrix, omega_inv, Py, outco
 score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params){
   
   #-------------Parameters-----------------
-  beta <- params[1:ncol(design_matrix)]
-  sigma2_vec <- params[(ncol(design_matrix) + 1):length(params)]
+  beta <- params[1:ncol(design_matrix)]                             #extracting mean-value parameters
+  sigma2_vec <- params[(ncol(design_matrix) + 1):length(params)]    #extracting variance parameters
   
 
   # Calculating omega inverse
@@ -326,13 +342,12 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
 #-------------------------------------------
 #       Fisher scoring algorithm
 #-------------------------------------------
-find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, tolerance = 1e-12){
+find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, update_step_size = 1, max_iter = 1000000, tolerance = 1e-1){
   
   max_iter <- max_iter
   tolerance <- tolerance
   
   for (iter in 1:max_iter) {
-    print(iter)
     
     out <- Map(score_fisher_function, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(init_params))
     
@@ -356,7 +371,9 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
     }
     
     # Update parameters for the next iteration
-    init_params <- init_params + update_step
+    init_params <- init_params + update_step_size * update_step
+    print(update_step)
+    print(init_params)
   }
   
   return(init_params)

@@ -131,7 +131,7 @@ reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes,
 #-------------------------------------------
 #       Fisher scoring algorithm
 #-------------------------------------------
-find_remle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, tolerance = 1e-6){
+find_remle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, tolerance = 1e-3, update_step_size = 1){
   
   max_iter <- max_iter
   tolerance <- tolerance
@@ -171,7 +171,7 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     }
     
     # Update parameters for the next iteration
-    init_params <- init_params + update_step
+    init_params <- init_params + update_step_size * update_step
     
     print('init_params')
     print(init_params)

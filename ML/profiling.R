@@ -1,8 +1,8 @@
 #Profiling algorithm
 
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 100000
-n_individuals_in_cluster = 50
+n_clusters = 5000
+n_individuals_in_cluster = 10
 
 
 #Generate large dataset
@@ -20,8 +20,9 @@ summary_model <- summary(model)
 
 #Run and profile ML-algorithm
 
+
+
+Rprof()
 find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 1)
-
-
-
-#find_remle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 0.1)
+summaryRprof()
+Rprof(NULL)

@@ -143,27 +143,27 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     # Sum blocks
     S_sum <- Reduce('+',lapply(out, function(x) x$S))
     
-    print('S_sum')
-    print(S_sum)
+    #print('S_sum')
+    #print(S_sum)
     
     # Define inverse fisher information
     fisher_inv <- chol2inv(chol(S_sum))
     
-    print('fisher_inv')
-    print(fisher_inv)
+    #print('fisher_inv')
+    #print(fisher_inv)
     
     # Sum scores
     score <- rowSums(sapply(out, function(x) x$score))
     
-    print('score')
-    print(score)
+    #print('score')
+    #print(score)
     
     
     #Calculate update step
     update_step <- fisher_inv %*% score
     
-    print('update_step')
-    print(update_step)
+    #print('update_step')
+    #print(update_step)
     
     # Check for convergence
     if (sum((update_step)^2) < tolerance) {
@@ -173,8 +173,8 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     # Update parameters for the next iteration
     init_params <- init_params + update_step_size * update_step
     
-    print('init_params')
-    print(init_params)
+    #print('init_params')
+    #print(init_params)
   }
   
   return(init_params)

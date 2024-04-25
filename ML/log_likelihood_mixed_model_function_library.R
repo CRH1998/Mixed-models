@@ -8,7 +8,7 @@ library(psych)                # For calculating the trace
 library(profvis)              # For evaluating performance of code
 library(foreach)              # For parallel computation
 library(doParallel)           # For parallel computation
-
+library(MASS)                 # For mvrnorm()
 
 
 
@@ -115,29 +115,31 @@ gen_func_input <- function(n_blokke, REML = FALSE){
 
 
 # Generate large data set for testing
-large_dataset_generator <- function(n_clusters, n_individuals_in_cluster, seed = 1){
-  
-  set.seed(1)
-  
-  klasser <- rep(seq(1,n_clusters),each = n_individuals_in_cluster)
-  subklasser <- rep(seq(1,n_clusters*2), each = n_individuals_in_cluster/2)
-  y <- sqrt(klasser) + rnorm(n_individuals_in_cluster* n_clusters, mean = 1, sd = 1) + subklasser
-  
-  DF <- data.frame(y = y, klasse = klasser, subklasse = subklasser)
-  
-  outcome_list <- split(DF$y, rep(1:n_clusters, each = n_individuals_in_cluster, length.out = length(DF$y)))
-  
-  #model <- lme4::lmer(y ~ 1 + (1|klasse) + (1|subklasse), data=DF, REML=F)
-  #summary_model <- summary(model)
+large_dataset_generator <- function(n_clusters, n_individuals_in_cluster, sigma_0 = 1, sigma_1 = 1, seed = 1){
   
   gamma0_matrix <- as.matrix(diag(1, nrow = n_individuals_in_cluster))
-  gamma1_matrix <- as.matrix(bdiag(matrix(1,n_individuals_in_cluster,n_individuals_in_cluster)))
-  gamma2_matrix <- as.matrix(bdiag(matrix(1, nrow = floor(n_individuals_in_cluster/2), ncol = floor(n_individuals_in_cluster/2)), 
+  gamma1_matrix <- as.matrix(bdiag(matrix(1, nrow = floor(n_individuals_in_cluster/2), ncol = floor(n_individuals_in_cluster/2)), 
                                    matrix(1, nrow = ceiling(n_individuals_in_cluster/2), ncol = ceiling(n_individuals_in_cluster/2))))
-  gamma_list <- list(gamma0_matrix, gamma1_matrix, gamma2_matrix)
+  gamma_list <- list(gamma0_matrix, gamma1_matrix)
   
   semi_def_matrices <- replicate(n_clusters, gamma_list, simplify = F)
   design_matrices <- replicate(n_clusters, as.matrix(rep(1, n_individuals_in_cluster)), simplify = F)
+  
+  
+  set.seed(1)
+  
+  #klasser <- rep(seq(1,n_clusters),each = n_individuals_in_cluster)
+  subklasser <- rep(seq(1,n_clusters*2), each = n_individuals_in_cluster/2)
+  
+  mu_vec <- rep(0, n_individuals_in_cluster)
+  
+  y <- mvrnorm(n = n_individuals_in_cluster, mu = mu_vec, Sigma = gamma0_matrix * sigma_0 + gamma1_matrix * sigma_1)
+  
+  DF <- data.frame(y = y, subklasse = subklasser)
+  
+  outcome_list <- NA # split(DF$y, rep(1:n_clusters, each = n_individuals_in_cluster, length.out = length(DF$y)))
+  
+  
   
   return(list('design_matrices' = design_matrices, 'semi_def_matrices' = semi_def_matrices, 'outcome_list' = outcome_list, 'DF' = DF))#, 'summary_model' = summary_model))
 }
@@ -250,8 +252,9 @@ S_matrix_function <- function(semi_def_matrix, omega_inv){
   S <- matrix(data = NA, nrow = length(semi_def_matrix), ncol = length(semi_def_matrix))
   
   for (i in 1:length(semi_def_matrix)){
-    for (j in 1:length(semi_def_matrix)){
+    for (j in i:length(semi_def_matrix)){
       S[i,j] <- 0.5 * sum(A[[i]] * A[[j]])
+      S[j,i] <- S[i,j]
     }
   }
   

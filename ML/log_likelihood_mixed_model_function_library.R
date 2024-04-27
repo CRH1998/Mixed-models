@@ -128,16 +128,19 @@ large_dataset_generator <- function(n_clusters, n_individuals_in_cluster, sigma_
   
   set.seed(1)
   
-  #klasser <- rep(seq(1,n_clusters),each = n_individuals_in_cluster)
-  subklasser <- rep(seq(1,n_clusters*2), each = n_individuals_in_cluster/2)
+  klasser <- rep(seq(1,n_clusters),each = n_individuals_in_cluster)
+  subklasser <- rep(seq(1:(n_clusters*2)), each = n_individuals_in_cluster/2)
+    
+    #rep(c(rep(1, floor(n_individuals_in_cluster/2)), rep(2, ceiling(n_individuals_in_cluster/2))), each = n_clusters*2)
   
-  mu_vec <- rep(0, n_individuals_in_cluster)
+  mu_vec <- rep(5, n_individuals_in_cluster)
   
-  y <- mvrnorm(n = n_individuals_in_cluster, mu = mu_vec, Sigma = gamma0_matrix * sigma_0 + gamma1_matrix * sigma_1)
+  y <- c(replicate(n_clusters, 
+           mvrnorm(n = 1, mu = mu_vec, Sigma = gamma0_matrix * sigma_0 + gamma1_matrix * sigma_1)))
   
-  DF <- data.frame(y = y, subklasse = subklasser)
+  DF <- data.frame(y = y, klasse = klasser, subklasse = subklasser)
   
-  outcome_list <- NA # split(DF$y, rep(1:n_clusters, each = n_individuals_in_cluster, length.out = length(DF$y)))
+  outcome_list <- split(DF$y, rep(1:n_clusters, each = n_individuals_in_cluster, length.out = length(DF$y)))
   
   
   
@@ -200,9 +203,6 @@ omega_func <- function(semi_def_matrix, sigma2_vec){
   
   return(omega)
 }
-
-
-
 
 
 # Multiply list by matrix
@@ -306,6 +306,8 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
 
   # Calculating omega inverse
   omega <- omega_func(semi_def_matrix, sigma2_vec)
+
+  
   omega_inv <- chol2inv(chol(omega))
   
   
@@ -354,9 +356,11 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
     
     out <- Map(score_fisher_function, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(init_params))
     
+    
     # Sum blocks
     M_sum <- Reduce('+',lapply(out, function(x) x$M))
     S_sum <- Reduce('+',lapply(out, function(x) x$S))
+    
     
     # Define inverse fisher information
     fisher_inv <- bdiag(chol2inv(chol(M_sum)), chol2inv(chol(S_sum)))

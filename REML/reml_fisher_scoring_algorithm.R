@@ -54,13 +54,19 @@ y_t_P_func <- function(P, outcome){
 # Calculate S matrix
 S_matrix_reml_function <- function(semi_def_matrix, P){
   
+  
+  A <- multiply_list_by_matrix(P, semi_def_matrix)
+  
+  
   S <- matrix(data = NA, nrow = length(semi_def_matrix), ncol = length(semi_def_matrix))
   
   for (i in 1:length(semi_def_matrix)){
-    for (j in 1:length(semi_def_matrix)){
-      S[i,j] <- 0.5 * tr(P %*% semi_def_matrix[[i]] %*% P %*% semi_def_matrix[[j]])
+    for (j in i:length(semi_def_matrix)){
+      S[i,j] <- 0.5 * sum(A[[i]] * A[[j]])
+      S[j,i] <- S[i,j]
     }
   }
+  
   return(S)
 }
 

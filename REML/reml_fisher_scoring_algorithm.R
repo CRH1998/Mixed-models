@@ -1,107 +1,11 @@
-# Loading relevant packages
-library(Matrix)               # For matrix manipulation
-library(clusterGeneration)    # For positive semi-definite matrices
-library(mvtnorm)              # For log-likelihood calculation
-library(lme4)                 # For mixed model
-library(microbenchmark)       # For testing function speed
-library(psych)                # For calculating the trace
-library(profvis)              # For evaluating performance of code
 
 
 
 
 
-#Helper functions
-# Matrix product list by matrix
-matrix_mult_specify <- function(matrix1, mult_by_right = F){
-  
-  if(mult_by_right == F){
-    return(function(matrix2){matrix1 %*% matrix2})
-  } else {
-    return(function(matrix2){matrix2 %*% matrix1})
-  }
-}
-
-matrix_mult_list_by_matrix <- function(matrix, list, mult_by_right = F){
-  matrix_mult_matrix <- matrix_mult_specify(matrix, mult_by_right)
-  return(lapply(list, matrix_mult_matrix))
-}
 
 
 
-
-# --------------P matrix------------------ (27.17b)
-P_func <- function(omega_inv, design_matrix){
-  
-  A <- t(design_matrix) %*% omega_inv
-  
-  return(omega_inv - omega_inv %*% design_matrix %*% chol2inv(chol(A %*% design_matrix)) %*% A)
-}
-
-
-# If P has already been calculated
-Py_func_P <- function(P, outcome){
-  return(P %*% outcome)
-}
-
-y_t_P_func <- function(P, outcome){
-  return(crossprod(outcome, P))
-}
-
-
-
-
-# Calculate S matrix
-S_matrix_reml_function <- function(semi_def_matrix, P){
-  
-  
-  A <- multiply_list_by_matrix(P, semi_def_matrix)
-  
-  
-  S <- matrix(data = NA, nrow = length(semi_def_matrix), ncol = length(semi_def_matrix))
-  
-  for (i in 1:length(semi_def_matrix)){
-    for (j in i:length(semi_def_matrix)){
-      S[i,j] <- 0.5 * sum(A[[i]] * A[[j]])
-      S[j,i] <- S[i,j]
-    }
-  }
-  
-  return(S)
-}
-
-
-
-
-reml_score_func <- function(P, outcomes, semi_def_matrix){
-  
-  # Calculating tr(P %*% V_i)
-  
-  #P_semi_def <- multiply_list_by_matrix(-0.5 * P, semi_def_matrix)
-  #
-  #trP_semi_def <- lapply(P_semi_def, FUN = tr)
-  
-  
-  # Calculating y^T %*% P %*% V_i %*% P %*% y
-
-  #y_t_P_semi_def <- matrix_mult_list_by_matrix(t(outcomes) %*% P, semi_def_matrix)
-  #
-  #y_t_P_semi_def_Py <- matrix_mult_list_by_matrix(0.5 * P %*% outcomes, y_t_P_semi_def, mult_by_right = T)
-  
-
-    
-  # Calculating score of variance components
-  
-  sigma_scores <- list()
-  
-  for (i in 1:length(semi_def_matrix)){
-    sigma_scores[[i]] <- 0.5 * (-tr(P %*% semi_def_matrix[[i]]) + (t(outcomes) %*% P) %*% semi_def_matrix[[i]] %*% (P %*% outcomes))
-  }
-  
-  #sigma_scores <- Map('+', y_t_P_semi_def_Py, trP_semi_def)
-  
-  return(c(unlist(sigma_scores)))
-}
 
 
 

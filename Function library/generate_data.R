@@ -1,4 +1,12 @@
-
+######################################################
+#                                                    #
+# Construct R-function to calculate log likelihood   #
+# for block-multivariate normal gaussian where the   #
+# covariance matrix is a linear combination of kno-  #
+# wn semi-definite matrices                          #
+#                                                    #
+#                                                    #
+######################################################
 
 #-------------------------------------------
 #   Generate data for testing functions

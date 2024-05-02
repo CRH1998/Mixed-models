@@ -1,7 +1,7 @@
 #Profiling algorithm
 
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 1000
+n_clusters = 10000
 n_individuals_in_cluster = 10
 
 
@@ -33,7 +33,7 @@ system.time(find_remle_parameters(init_params = c(1,1), design_matrices = design
 find_remle_parameters(init_params = c(1,1), design_matrices = design_matrices, 
                     semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 1, tolerance = 1e-12)
 
-#40.477   0.947  41.453 
+
 
 Rprof()
 summaryRprof()

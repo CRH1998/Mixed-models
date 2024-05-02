@@ -12,43 +12,15 @@ library(MASS)                 # For mvrnorm()
 
 
 
-#-------------------------------------------
-#       Log likelihood functions
-#-------------------------------------------
-
-
-log_likelihood_block <- function(design_matrix, semi_def_matrix, outcomes, parameters){
-  
-  #Determining n_i
-  n_i <- nrow(design_matrix)
-  
-  mean_vec <- parameters[1:ncol(design_matrix)]
-  sigma2_vec <- parameters[(ncol(design_matrix) + 1):length(parameters)]
-  
-  
-  #Calculating inverse covariance matrix
-  omega <- omega_func(semi_def_matrix, sigma2_vec)
-  
-  #Inverse omega
-  omega_inv <- chol2inv(chol(omega))
-  
-  
-  #Calculating log-likelihood
-  res <- -n_i/2 * log(2 * pi) - 1/2 * log(det(omega)) - 1/2 * t(outcomes - design_matrix %*% mean_vec) %*% omega_inv %*% (outcomes - design_matrix %*% mean_vec)
-  
-  #Returning log-likelihood
-  return(res)
-}
-
-
-log_likelihood <- function(design_matrices, semi_def_matrices, outcome_list, parameters){
-  
-  #Applying log-likehood function to each element of lists, parameter vector and sigma vector is the same for each individual
-  res <- Map(log_likelihood_block, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(parameters))
-  
-  return(Reduce('+', res))
-}
-
+######################################################
+#                                                    #
+# Construct R-function to calculate log likelihood   #
+# for block-multivariate normal gaussian where the   #
+# covariance matrix is a linear combination of kno-  #
+# wn semi-definite matrices                          #
+#                                                    #
+#                                                    #
+######################################################
 
 
 #-------------------------------------------
@@ -101,19 +73,10 @@ tr_multiply_list_by_matrix <- function(matrix, list){
 
 S_matrix_function <- function(semi_def_matrix, omega_inv){
   
-  #S <- function(matrix1, matrix2, S_elements) {
-  #  outer(matrix1, matrix2, function(x,y) vapply(seq_along(x), function(i) S_elements(x[[i]], y[[i]]), numeric(1)))
-  #}
-  #
-  #return(S(A, A, S_elements))
-  
-  #S <- 0.5 * outer(seq_along(semi_def_matrix), seq_along(semi_def_matrix),
-  #            Vectorize(function(i, j) tr(A[[i]] %*% A[[j]])))
-  
-  
+  # Multiply each covariance component matrix by the inverse of the covariance matrix
   A <- multiply_list_by_matrix(omega_inv, semi_def_matrix)
   
-  
+  # Construct empty matrix to fill with values 
   S <- matrix(data = NA, nrow = length(semi_def_matrix), ncol = length(semi_def_matrix))
   
   for (i in 1:length(semi_def_matrix)){
@@ -248,30 +211,6 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
   
   return(init_params)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-##Matrix multiply matrix list with itself
-#matrix_mult_with_self <- function(matrix_list){
-#  multiply_matrices <- function(mat) {
-#    mat %*% t(mat)
-#  }
-#  
-#  # Applying function to each matrix in the list
-#  self_mult <- lapply(matrix_list, multiply_matrices)
-#  
-#  # Print the result
-#  return(self_mult)
-#}
 
 
 

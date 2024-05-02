@@ -1,5 +1,23 @@
+
+#####################################################################
+#                                                                   #
+#     This script contains the algorithm for running the            #
+#     ML fisher-scoring algorithm in a block-multivariate           #
+#     normal gaussian where the covariance matrix is block-         #
+#     diagonal and a linear combination of known semi-              #
+#     definite matrices                                             #
+#                                                                   #
+#                                                                   #
+#     Dependicies: To run this script you have to source            #
+#     function_library.R which contains loading of rele-            #
+#     vant packages and relevant helper-functions.                  #
+#                                                                   #
+#####################################################################
+
+
+
 #-------------------------------------------
-#       Fisher scoring function
+#       ML fisher scoring function
 #-------------------------------------------
 score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params){
   
@@ -49,7 +67,7 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
 
 
 #-------------------------------------------
-#       Fisher scoring algorithm
+#       ML fisher scoring algorithm
 #-------------------------------------------
 find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, update_step_size = 1, max_iter = 10000, tolerance = 1e-1){
   
@@ -87,3 +105,4 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
   
   return(init_params)
 }
+

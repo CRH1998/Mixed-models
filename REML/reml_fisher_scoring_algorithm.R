@@ -1,22 +1,37 @@
 
-
-
-
-
-
-
-
+#####################################################################
+#                                                                   #
+#     This script contains the algorithm for running the            #
+#     REML fisher-scoring algorithm in a block-multivariate         #
+#     normal gaussian where the covariance matrix is block-         #
+#     diagonal and a linear combination of known semi-              #
+#     definite matrices                                             #
+#                                                                   #
+#                                                                   #
+#     Dependicies: To run this script you have to source            #
+#     function_library.R which contains loading of rele-            #
+#     vant packages and relevant helper-functions.                  #
+#                                                                   #
+#####################################################################
 
 
 
 #-------------------------------------------
-#       Fisher scoring function
+#       REML fisher scoring function
 #-------------------------------------------
-reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params){
+reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params, small_value_threshold = 0.001){
   
 
   # Calculating omega inverse
   omega <- omega_func(semi_def_matrix = semi_def_matrix, sigma2_vec = params)
+  
+  # Setting very small values to 0
+  #omega[omega < 1e-09] <- 0
+  
+  # Adding small value to diagonal if diagonal values are very small
+  #omega <- omega + (diag(omega) < small_value_threshold) * 0.01 * diag(length(diag(omega)))
+  
+  # Inverting omega
   omega_inv <- chol2inv(chol(omega))
   
   
@@ -39,9 +54,9 @@ reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes,
 
 
 #-------------------------------------------
-#       Fisher scoring algorithm
+#       REML fisher scoring algorithm
 #-------------------------------------------
-find_remle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, tolerance = 1e-3, update_step_size = 1){
+find_remle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, tolerance = 1e-3, update_step_size = 1, small_value_threshold = 0.001){
   
   max_iter <- max_iter
   tolerance <- tolerance
@@ -53,27 +68,24 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     # Sum blocks
     S_sum <- Reduce('+',lapply(out, function(x) x$S))
     
-    #print('S_sum')
-    #print(S_sum)
+    # Setting very small values to 0
+    #S_sum[S_sum < 1e-09] <- 0
+    
+    # Adding small value to diagonal if diagonal values are very small
+    #S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * 0.01 * diag(length(diag(S_sum)))
+    
     
     # Define inverse fisher information
     fisher_inv <- chol2inv(chol(S_sum))
     
-    #print('fisher_inv')
-    #print(fisher_inv)
     
     # Sum scores
     score <- rowSums(sapply(out, function(x) x$score))
-    
-    #print('score')
-    #print(score)
     
     
     #Calculate update step
     update_step <- fisher_inv %*% score
     
-    #print('update_step')
-    #print(update_step)
     
     # Check for convergence
     if (sum((update_step)^2) < tolerance) {
@@ -82,10 +94,9 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     
     # Update parameters for the next iteration
     init_params <- init_params + update_step_size * update_step
-    
-    #print('init_params')
-    #print(init_params)
   }
+  
+  init_params[init_params < 0] <- init_params[init_params < 0]^2
   
   return(init_params)
 }

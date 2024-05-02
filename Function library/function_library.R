@@ -16,10 +16,10 @@ library(MASS)                 # For mvrnorm()
 
 #####################################################################
 #                                                                   #
-#     Helper functions calculate log likelihood for                 #
-#     block-multivariate normal gaussian where the                  #
-#     covariance matrix is a linear combination of                  #
-#     known semi-definite matrices.                                 #
+#     Helper functions to calculate log likelihood                  #
+#     for block-multivariate normal gaussian where                  #
+#     the covariance matrix is a linear combination                 #
+#     of known semi-definite matrices.                              #
 #                                                                   #
 #     This script also contains helper functions for                #
 #     for running ML-fisher scoring algorihtm and REML-             #
@@ -182,7 +182,7 @@ P_func <- function(omega_inv, design_matrix){
   
   A <- t(design_matrix) %*% omega_inv
   
-  return(omega_inv - omega_inv %*% design_matrix %*% chol2inv(chol(A %*% design_matrix)) %*% A)
+  return(omega_inv - (omega_inv %*% design_matrix) %*% chol2inv(chol(A %*% design_matrix)) %*% A)
 }
 
 
@@ -198,13 +198,13 @@ y_t_P_func <- function(P, outcome){
 
 
 
-# ------------- Calculate REML S matrix-----------------
+# ------------- Calculate REML S matrix----------------- (27.31a) (Note that for REML the S matrix corresponds to the fisher information matrix)
 S_matrix_reml_function <- function(semi_def_matrix, P){
   
-  
+  # Multiplying the P matrix with each semi-definite matrix (variance component matrix)
   A <- multiply_list_by_matrix(P, semi_def_matrix)
   
-  
+  # Creating empty matrix to store S matrix (fisher information matrix) entries
   S <- matrix(data = NA, nrow = length(semi_def_matrix), ncol = length(semi_def_matrix))
   
   for (i in 1:length(semi_def_matrix)){
@@ -218,35 +218,22 @@ S_matrix_reml_function <- function(semi_def_matrix, P){
 }
 
 
-#-------------Calculating REML scores------------------- (27.10)
+#-------------Calculating REML scores------------------- (27.33)
 reml_score_func <- function(P, outcomes, semi_def_matrix){
-  
-  # Calculating tr(P %*% V_i)
-  
-  #P_semi_def <- multiply_list_by_matrix(-0.5 * P, semi_def_matrix)
-  #
-  #trP_semi_def <- lapply(P_semi_def, FUN = tr)
-  
-  
-  # Calculating y^T %*% P %*% V_i %*% P %*% y
-  
-  #y_t_P_semi_def <- matrix_mult_list_by_matrix(t(outcomes) %*% P, semi_def_matrix)
-  #
-  #y_t_P_semi_def_Py <- matrix_mult_list_by_matrix(0.5 * P %*% outcomes, y_t_P_semi_def, mult_by_right = T)
-  
   
   
   # Calculating score of variance components
   
-  sigma_scores <- list()
+  sigma_scores <- c()
   
   for (i in 1:length(semi_def_matrix)){
-    sigma_scores[[i]] <- 0.5 * (-tr(P %*% semi_def_matrix[[i]]) + (t(outcomes) %*% P) %*% semi_def_matrix[[i]] %*% (P %*% outcomes))
+    # Saving matrix multiplication for faster computation
+    A <- P %*% semi_def_matrix[[i]]
+    
+    sigma_scores[i] <- - 0.5 * (tr(A) - (t(outcomes) %*% A) %*% (P %*% outcomes))
   }
-  
-  #sigma_scores <- Map('+', y_t_P_semi_def_Py, trP_semi_def)
-  
-  return(c(unlist(sigma_scores)))
+
+  return(sigma_scores)
 }
 
 

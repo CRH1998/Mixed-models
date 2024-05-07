@@ -10,7 +10,7 @@
 
 
 # Generate data set for testing
-dataset_generator <- function(n_clusters, n_individuals_in_cluster, mean_val = 1, sigma_0 = 1, sigma_1 = 1, sigma_2 = 1, seed = 1){
+dataset_generator <- function(n_clusters, n_individuals_in_cluster, mean_val = 1, beta_1 = 3, beta_2 = 3, sigma_0 = 1, sigma_1 = 1, sigma_2 = 1, seed = 1){
   
   
   #Diagonal matrix with ones in the diagonal and dimension corresponding to the number of individuals in each cluster (intercept)
@@ -33,7 +33,7 @@ dataset_generator <- function(n_clusters, n_individuals_in_cluster, mean_val = 1
                                    matrix(1, nrow = n_individuals_in_cluster/4, ncol = n_individuals_in_cluster/4)))
   
     #Corresponding feature
-    subklasser <- rep(seq(1:(n_clusters*4)), each = n_individuals_in_cluster/4) # rep(rep(seq(1:4),each = n_individuals_in_cluster/4), n_clusters)
+    subklasser <- rep(seq(1:(n_clusters*4)), each = n_individuals_in_cluster/4)
   
   
   # Collecting gamma matrices into list
@@ -44,7 +44,14 @@ dataset_generator <- function(n_clusters, n_individuals_in_cluster, mean_val = 1
   semi_def_matrices <- replicate(n_clusters, gamma_list, simplify = F)
   
   # Defining the design_matrices which is a list of n_clusters replicas of 1 vectors of length n_individuals_in_cluster
-  design_matrices <- replicate(n_clusters, as.matrix(rep(1, n_individuals_in_cluster)), simplify = F)
+  design_matrices <- replicate(n_clusters, as.matrix(cbind(rep(1, n_individuals_in_cluster), 
+                                                           rnorm(n_individuals_in_cluster),
+                                                           rnorm(n_individuals_in_cluster))), simplify = F) #replicate(n_clusters, as.matrix(rep(1, n_individuals_in_cluster)), simplify = F)
+  
+  x_1 <- c(sapply(design_matrices, function(x) x[,2]))
+  x_2 <- c(sapply(design_matrices, function(x) x[,3]))
+  
+  
   
   if (!is.na(seed)){
     set.seed(seed)
@@ -54,7 +61,7 @@ dataset_generator <- function(n_clusters, n_individuals_in_cluster, mean_val = 1
   # Sampling n_clusters outcomes from a multivariate normal distribution with n_individuals in cluster sample size
   y <- c(replicate(n_clusters, 
                    mvrnorm(n = 1, mu = rep(mean_val, n_individuals_in_cluster), 
-                                  Sigma = gamma0_matrix * sigma_0 + gamma1_matrix * sigma_1 + gamma2_matrix * sigma_2)))
+                                  Sigma = gamma0_matrix * sigma_0 + gamma1_matrix * sigma_1 + gamma2_matrix * sigma_2))) + beta_1 * x_1 + beta_2 * x_2
   
   # Collecting simulated data in dataframe
   DF <- data.frame(y = y, klasse = klasser, subklasse = subklasser)

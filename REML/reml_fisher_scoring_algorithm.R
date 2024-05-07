@@ -19,17 +19,17 @@
 #-------------------------------------------
 #       REML fisher scoring function
 #-------------------------------------------
-reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params, small_value_threshold = 0.001){
+reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params, small_value_threshold = 1e-12, add_small_constant = 1e-9){
   
 
   # Calculating omega inverse
   omega <- omega_func(semi_def_matrix = semi_def_matrix, sigma2_vec = params)
   
   # Setting very small values to 0
-  omega[omega < 1e-15] <- 0
+  omega[omega < small_value_threshold] <- 0
   
   # Adding small value to diagonal if diagonal values are very small
-  omega <- omega + (diag(omega) < small_value_threshold) * 1e-9 * diag(length(diag(omega)))
+  omega <- omega + (diag(omega) < small_value_threshold) * add_small_constant * diag(length(diag(omega)))
   
   # Inverting omega
   omega_inv <- chol2inv(chol(omega))
@@ -56,10 +56,8 @@ reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes,
 #-------------------------------------------
 #       REML fisher scoring algorithm
 #-------------------------------------------
-find_remle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, tolerance = 1e-6, update_step_size = 1, small_value_threshold = 0.001){
-  
-  max_iter <- max_iter
-  tolerance <- tolerance
+find_remle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, 
+                                  tolerance = 1e-6, update_step_size = 1, small_value_threshold = 1e-12, add_small_constant = 1e-9){
   
   for (iter in 1:max_iter) {
     
@@ -69,10 +67,10 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     S_sum <- Reduce('+',lapply(out, function(x) x$S))
     
     # Setting very small values to 0
-    S_sum[S_sum < 1e-09] <- 0
+    S_sum[S_sum < small_value_threshold] <- 0
     
     # Adding small value to diagonal if diagonal values are very small
-    S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * 1e-9 * diag(length(diag(S_sum)))
+    S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
     
     
     # Define inverse fisher information

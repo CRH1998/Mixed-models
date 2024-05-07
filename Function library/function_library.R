@@ -218,6 +218,7 @@ S_matrix_reml_function <- function(semi_def_matrix, P){
 }
 
 
+
 #-------------Calculating REML scores------------------- (27.33)
 reml_score_func <- function(P, outcomes, semi_def_matrix){
   

@@ -10,6 +10,7 @@ library(profvis)              # For evaluating performance of code
 library(foreach)              # For parallel computation
 library(doParallel)           # For parallel computation
 library(MASS)                 # For mvrnorm()
+library(kinship2)             # For family data
 
 ############################################################################# 
 
@@ -22,7 +23,7 @@ library(MASS)                 # For mvrnorm()
 #     of known semi-definite matrices.                              #
 #                                                                   #
 #     This script also contains helper functions for                #
-#     for running ML-fisher scoring algorihtm and REML-             #
+#     running ML-fisher scoring algorihtm and REML-                 #
 #     fisher scoring algorithm                                      #
 #                                                                   #
 #                                                                   #
@@ -182,33 +183,40 @@ P_func <- function(omega_inv, design_matrix){
   
   A <- t(design_matrix) %*% omega_inv
   
-  return(omega_inv - (omega_inv %*% design_matrix) %*% chol2inv(chol(A %*% design_matrix)) %*% A)
+  P <- omega_inv - t(A) %*% chol2inv(chol(A %*% design_matrix)) %*% A
+  
+  return(P)
 }
 
 
-# If the P matrix has already been calculated
+# If the P matrix has already been calculated, we calculate Py and y^tP using the calculated P
 Py_func_P <- function(P, outcome){
-  return(P %*% outcome)
+  
+  Py <- P %*% outcome
+  
+  return(Py)
 }
 
 y_t_P_func <- function(P, outcome){
-  return(crossprod(outcome, P))
+  
+  ytP <- crossprod(outcome, P)
+  
+  return(ytP)
 }
 
 
 
 
 # ------------- Calculate REML S matrix----------------- (27.31a) (Note that for REML the S matrix corresponds to the fisher information matrix)
-S_matrix_reml_function <- function(semi_def_matrix, P){
+S_matrix_reml_function <- function(A){
   
-  # Multiplying the P matrix with each semi-definite matrix (variance component matrix)
-  A <- multiply_list_by_matrix(P, semi_def_matrix)
+  #Here the A matrix is A <- multiply_list_by_matrix(P, semi_def_matrix), multiplying the P matrix with each semi-definite matrix (variance component matrix)
   
   # Creating empty matrix to store S matrix (fisher information matrix) entries
-  S <- matrix(data = NA, nrow = length(semi_def_matrix), ncol = length(semi_def_matrix))
+  S <- matrix(data = NA, nrow = length(A), ncol = length(A))
   
-  for (i in 1:length(semi_def_matrix)){
-    for (j in i:length(semi_def_matrix)){
+  for (i in 1:length(A)){
+    for (j in i:length(A)){
       S[i,j] <- 0.5 * sum(A[[i]] * A[[j]])
       S[j,i] <- S[i,j]
     }
@@ -220,18 +228,15 @@ S_matrix_reml_function <- function(semi_def_matrix, P){
 
 
 #-------------Calculating REML scores------------------- (27.33)
-reml_score_func <- function(P, outcomes, semi_def_matrix){
+reml_score_func <- function(P, outcomes, A){
   
+  #Here the A matrix is A <- multiply_list_by_matrix(P, semi_def_matrix), multiplying the P matrix with each semi-definite matrix (variance component matrix)
   
   # Calculating score of variance components
-  
   sigma_scores <- c()
   
-  for (i in 1:length(semi_def_matrix)){
-    # Saving matrix multiplication for faster computation
-    A <- P %*% semi_def_matrix[[i]]
-    
-    sigma_scores[i] <- - 0.5 * (tr(A) - (t(outcomes) %*% A) %*% (P %*% outcomes))
+  for (i in 1:length(A)){
+    sigma_scores[i] <- - 0.5 * (tr(A[[i]]) - (t(outcomes) %*% A[[i]]) %*% (P %*% outcomes))
   }
 
   return(sigma_scores)

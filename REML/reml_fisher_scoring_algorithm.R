@@ -26,25 +26,28 @@ reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes,
   omega <- omega_func(semi_def_matrix = semi_def_matrix, sigma2_vec = params)
   
   # Setting very small values to 0
-  omega[omega < small_value_threshold] <- 0
+  #omega[omega < small_value_threshold] <- 0
   
   # Adding small value to diagonal if diagonal values are very small
-  omega <- omega + (diag(omega) < small_value_threshold) * add_small_constant * diag(length(diag(omega)))
+  #omega <- omega + (diag(omega) < small_value_threshold) * add_small_constant * diag(length(diag(omega)))
   
   # Inverting omega
   omega_inv <- chol2inv(chol(omega))
   
-  
   # Calculating P matrix
   P <- P_func(omega_inv = omega_inv, design_matrix = design_matrix)
   
+  
+  #Multiplying the P matrix with each semi-definite matrix (variance component matrix) to save computations
+  A <- multiply_list_by_matrix(P, semi_def_matrix)
 
+  
   #-------------Calculating S matrix-----------------
-  S <- S_matrix_reml_function(semi_def_matrix = semi_def_matrix, P = P)
+  S <- S_matrix_reml_function(A = A)
   
   
   #-------------Calculating scores-------------------
-  score <- reml_score_func(P = P, outcomes = outcomes, semi_def_matrix = semi_def_matrix)
+  score <- reml_score_func(P = P, outcomes = outcomes, A = A)
   
   
   return(list('S' = S, 'score' = score))
@@ -67,10 +70,10 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     S_sum <- Reduce('+',lapply(out, function(x) x$S))
     
     # Setting very small values to 0
-    S_sum[S_sum < small_value_threshold] <- 0
+    #S_sum[S_sum < small_value_threshold] <- 0
     
     # Adding small value to diagonal if diagonal values are very small
-    S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
+    #S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
     
     
     # Define inverse fisher information

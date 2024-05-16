@@ -2,6 +2,7 @@
 #                                                    #
 # This code construct a test dataset for testing     #
 # the fisher scoring algorithms                      #
+#                                                    #
 ######################################################
 
 #-------------------------------------------
@@ -64,7 +65,7 @@ dataset_generator <- function(n_clusters, n_individuals_in_cluster, mean_val = 1
                                   Sigma = gamma0_matrix * sigma_0 + gamma1_matrix * sigma_1 + gamma2_matrix * sigma_2))) + beta_1 * x_1 + beta_2 * x_2
   
   # Collecting simulated data in dataframe
-  DF <- data.frame(y = y, klasse = klasser, subklasse = subklasser)
+  DF <- data.frame(y = y, klasse = klasser, subklasse = subklasser, x1 = x_1, x2 = x_2)
   
   # Collecting outcomes in a list of length n_clusters containing lists of outcomes each of length n_individuals_in_cluster
   outcome_list <- split(DF$y, rep(1:n_clusters, each = n_individuals_in_cluster, length.out = length(DF$y)))

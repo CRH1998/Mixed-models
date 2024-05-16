@@ -25,8 +25,7 @@ restricted_log_likelihood_block <- function(design_matrix, semi_def_matrix, outc
   #Determining n_i
   n_i <- nrow(design_matrix)
   
-  mean_vec <- parameters[1:ncol(design_matrix)]
-  sigma2_vec <- parameters[(ncol(design_matrix) + 1):length(parameters)]
+  sigma2_vec <- parameters
   
   
   #Calculating inverse covariance matrix
@@ -35,9 +34,16 @@ restricted_log_likelihood_block <- function(design_matrix, semi_def_matrix, outc
   #Inverse omega
   omega_inv <- chol2inv(chol(omega))
   
+  #Storing repeated matrix multiplications
+  XVX <- t(design_matrix) %*% omega_inv %*% design_matrix
+  
+  
+  # Calculate beta_hat
+  beta_hat <- chol2inv(chol(XVX)) %*% t(design_matrix) %*% omega_inv %*% outcomes
+  yXB <- outcomes - design_matrix %*% beta_hat
   
   #Calculating log-likelihood
-  res <- -0.5 * ((n_i - length(mean_vec)) * log(2 * pi) + log(det(omega)) + log(det(t(design_matrix) %*% omega_inv %*% design_matrix)) + t(outcomes - design_matrix %*% mean_vec) %*% omega_inv %*% (outcomes - design_matrix %*% mean_vec))
+  res <- -0.5 * ((n_i - length(beta_hat)) * log(2 * pi) + log(det(omega)) + log(det(XVX)) + t(yXB) %*% omega_inv %*% (yXB))
     
   
   #Returning log-likelihood

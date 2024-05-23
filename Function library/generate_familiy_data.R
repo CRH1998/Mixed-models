@@ -16,7 +16,7 @@ pair_parents_with_children <- function(parents, unassigned_individuals){
     children <- unassigned_individuals[sample(nrow(unassigned_individuals), no_children),]
     
     # Construct family dataframe
-    ifelse(no_children == 0, sub_family_df <- rbind(sub_family_df, data.frame(NA, NA, NA, NA)), 
+    ifelse(no_children == 0, sub_family_df <- rbind(sub_family_df, data.frame(matrix(ncol = 4, nrow = 0))), 
            sub_family_df <- rbind(sub_family_df, data.frame(children, parents[i,1], parents[i,3])))
     
     #Remove children who are already assigned
@@ -42,6 +42,9 @@ pair_children_with_spouses <- function(family_df, unassigned_individuals){
   no_male_spouses <- sample(0:min(nrow(female_children), nrow(unassigned_men)), 1)
   no_female_spouses <- sample(0:min(nrow(male_children), nrow(unassigned_women)), 1)
   
+  print(no_male_spouses)
+  print(no_female_spouses)
+  
   married_male_unassigned <- unassigned_men[sample(nrow(unassigned_men), no_male_spouses),]
   married_female_unassigned <- unassigned_women[sample(nrow(unassigned_women), no_female_spouses),]
   
@@ -65,7 +68,6 @@ pair_children_with_spouses <- function(family_df, unassigned_individuals){
   return(list('parents' = parents, 'assigned_individuals' = assigned_individuals))
 }
 
-set.seed(1)
 
 # Specify number of individuals in the family
 n_individuals <- 10
@@ -97,8 +99,6 @@ names(final_family_df) <- c("id", "sex","dadid", "momid")
 
 while(nrow(unassigned_individuals) > 0){
   
-  set.seed(1)
-  
   if(nrow(parents) > 0){
     family_df <- pair_parents_with_children(parents, unassigned_individuals)
   }
@@ -106,7 +106,7 @@ while(nrow(unassigned_individuals) > 0){
   unassigned_individuals <- unassigned_individuals[!(unassigned_individuals$id %in% family_df$id),]
   
   if (((sum(unassigned_individuals$sex == 1) == 0) | (sum(unassigned_individuals$sex == 2) == 0)) & (nrow(unassigned_individuals) > 0)){
-    last_unassinged <- cbind(unassigned_individuals, family_df[nrow(family_df),3], family_df[nrow(family_df),4])
+    last_unassinged <- cbind(unassigned_individuals, family_df[1,3], family_df[1,4])
     names(last_unassinged) <- c("id", "sex","dadid", "momid")
     final_family_df <- rbind(final_family_df, family_df, last_unassinged)
     break
@@ -115,8 +115,9 @@ while(nrow(unassigned_individuals) > 0){
   }
   
   if (nrow(unassigned_individuals) > 0  & nrow(family_df) > 0){
-    parents <- pair_children_with_spouses(family_df, unassigned_individuals)$parents
-    assigned_individuals <- pair_children_with_spouses(family_df, unassigned_individuals)$assigned_individuals
+    parents_list <- pair_children_with_spouses(family_df, unassigned_individuals)
+    parents <- parents_list$parents
+    assigned_individuals <- parents_list$assigned_individuals
     final_family_df <- rbind(final_family_df, assigned_individuals)
   }
   
@@ -132,10 +133,7 @@ final_family_df
 
 
 
-family_structure_df <- data.frame(id = c(1,2,3,4,5,6,7,8,9,10), 
-                                  sex = c(1,2,2,1,1,2,2,2,2,2), 
-                                  dadid = c(0,0,1,1,1,0,0,4,4,5), 
-                                  momid = c(0,0,2,2,2,0,0,6,6,7), 
+family_structure_df <- data.frame(final_family_df,
                                   famid = 1)
 family_structure_df
 
@@ -147,8 +145,9 @@ foo <- pedigree(id = family_structure_df$id,
                 dadid = family_structure_df$dadid, 
                 momid = family_structure_df$momid, 
                 sex = family_structure_df$sex,
-                famid = family_structure_df$famid,
-                relation = relation_matrix)
+                famid = family_structure_df$famid)
+
+    #,relation = relation_matrix)
 ped <- foo['1']
 plot(ped)
 

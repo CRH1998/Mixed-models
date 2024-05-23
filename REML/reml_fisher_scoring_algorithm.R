@@ -26,10 +26,10 @@ reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes,
   omega <- omega_func(semi_def_matrix = semi_def_matrix, sigma2_vec = params)
   
   # Setting very small values to 0
-  #omega[omega < small_value_threshold] <- 0
+  omega[omega < small_value_threshold] <- 0
   
   # Adding small value to diagonal if diagonal values are very small
-  #omega <- omega + (diag(omega) < small_value_threshold) * add_small_constant * diag(length(diag(omega)))
+  omega <- omega + (diag(omega) < small_value_threshold) * add_small_constant * diag(length(diag(omega)))
   
   # Inverting omega
   omega_inv <- chol2inv(chol(omega))
@@ -70,10 +70,10 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     S_sum <- Reduce('+',lapply(out, function(x) x$S))
     
     # Setting very small values to 0
-    #S_sum[S_sum < small_value_threshold] <- 0
+    S_sum[S_sum < small_value_threshold] <- 0
     
     # Adding small value to diagonal if diagonal values are very small
-    #S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
+    S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
     
     
     # Define inverse fisher information
@@ -97,7 +97,7 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     init_params <- init_params + update_step_size * update_step
   }
   
-  init_params[init_params < 0] <- init_params[init_params < 0]^2
+  init_params[init_params < 0] <- 0
   
   return(init_params)
 }

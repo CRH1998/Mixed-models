@@ -6,7 +6,7 @@ n_individuals_in_cluster = 12
 
 
 #Generate large dataset
-large_dataset <- dataset_generator(n_clusters = n_clusters, n_cov_param = 4, n_mean_param = 3,
+large_dataset <- dataset_generator(n_clusters = n_clusters, n_cov_param = 2, n_mean_param = 1,
                                          n_individuals_in_cluster = n_individuals_in_cluster, 
                                          mean_val = 1,
                                          beta_1 = 5,
@@ -26,11 +26,11 @@ outcome <- large_dataset$outcome_list
 
 
 #Run and profile ML-algorithm
-mle_parameters <- find_mle_parameters(init_params = c(2,2,2,2,2,2,2), design_matrices = design_matrices, tolerance = 1e-9, 
-                    semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 1)[,1]
+mle_parameters <- find_mle_parameters(init_params = c(2,2,2), design_matrices = design_matrices, tolerance = 1e-9, 
+                    semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 1)
 
 
-rmle_parameters <- find_remle_parameters(init_params = c(2,2,2,2), design_matrices = design_matrices, tolerance = 1e-12,
+rmle_parameters <- find_remle_parameters(init_params = c(2,2), design_matrices = design_matrices, tolerance = 1e-12,
                       semi_def_matrices = semi_def_matrices, outcome_list = outcome, update_step_size = 1)
 
 
@@ -79,7 +79,7 @@ optim(par = c(1,1,1,1,1,1,1),
 DF <- large_dataset$DF
 #View(DF)
 
-model <- lme4::lmer(y ~ 1 + x1 + x2 + (1|klasse) + (1|subklasse) + (1|anden), data=DF, REML = T)
+model <- lme4::lmer(y ~ 1 + (1|klasse), data=DF, REML = T)
 summary_model <- summary(model)
 summary_model$logLik
 log_likelihood(design_matrices, semi_def_matrices, outcome, mle_parameters)

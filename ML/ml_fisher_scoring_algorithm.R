@@ -75,7 +75,7 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
 #-------------------------------------------
 #       ML fisher scoring algorithm
 #-------------------------------------------
-find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, update_step_size = 1, max_iter = 10000, tolerance = 1e-1, 
+find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, update_step_size = 1, max_iter = 10000, tolerance = 1e-6, 
                                 small_value_threshold = 1e-12, add_small_constant = 1e-9){
   
   

@@ -11,6 +11,7 @@ library(foreach)              # For parallel computation
 library(doParallel)           # For parallel computation
 library(MASS)                 # For mvrnorm()
 library(kinship2)             # For family data
+library(dplyr)
 
 ############################################################################# 
 
@@ -217,7 +218,7 @@ S_matrix_reml_function <- function(A){
   
   for (i in 1:length(A)){
     for (j in i:length(A)){
-      S[i,j] <- 0.5 * sum(A[[i]] * A[[j]])
+      S[i,j] <- 0.5 * tr(A[[i]] %*% A[[j]])
       S[j,i] <- S[i,j]
     }
   }

@@ -111,7 +111,7 @@ score
 update_step <- fisher_inv %*% score
 ```
 
-
+Note that the S_sum is has really small entries, so it is essentially arbitrary values that the algorithm runs on.
 
 
 

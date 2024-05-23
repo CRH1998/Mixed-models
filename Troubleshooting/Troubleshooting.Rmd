@@ -1,0 +1,120 @@
+---
+title: "Troubleshooting"
+author: "Christian Rubjerg Hejstvig-Larsen"
+output: html_document
+---
+
+We start by sourcing relevant scripts
+
+```{r warning=FALSE}
+source("Function library/function_library.R", local = knitr::knit_global())
+source("Function library/generate_family_data.R", local = knitr::knit_global())
+source("ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+source("REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+```
+
+There is a problem with REML, so we start troubleshooting. First step is generating some data:
+
+```{r}
+n_clusters = 10
+n_individuals_in_cluster = 10
+
+#Generate large dataset
+family_dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
+                                           n_mean_param = 2, mean_val = 1, beta_1 = 5,
+                                           sigma_0 = 2, sigma_1 = 1, sigma_2 = 1,
+                                           seed = NA)
+
+
+#Extract relevant lists from data to run FS-algorithms
+design_matrices <- family_dataset$design_matrices
+semi_def_matrices <- family_dataset$semi_def_matrices
+outcome_list <- family_dataset$outcome_list
+```
+
+Testing if the `reml_score_fisher_function()` calculates the right things:
+
+```{r}
+params <- c(1,1,1)
+X <- design_matrices[[1]]
+V_i <- semi_def_matrices[[1]]
+y <- outcome[[1]]
+
+# Calculating omega inverse
+omega <- omega_func(semi_def_matrix = V_i, sigma2_vec = params)
+
+# Inverting omega
+omega_inv <- chol2inv(chol(omega))
+
+# Calculating P matrix
+V_inv <- omega_inv
+
+P_test <- omega_inv - omega_inv %*% X %*% solve((t(X) %*% omega_inv %*% X)) %*% t(X) %*% omega_inv
+P <- P_func(omega_inv = V_inv, design_matrix = X)
+
+P_test - P
+
+#-------------Calculating S matrix-----------------
+S <- S_matrix_reml_function(P = P, semi_def_matrix = V_i)
+
+S
+
+0.5 * tr(P%*%P)
+0.5 * tr(P %*% V_i[[1]] %*% P %*% V_i[[2]])
+0.5 * tr(P %*% V_i[[1]] %*% P %*% V_i[[3]])
+0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[1]])
+0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[2]])
+0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[3]])
+0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[1]])
+0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[2]])
+0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[3]])
+
+
+#-------------Calculating scores-------------------
+score <- reml_score_func(P = P, outcomes = y, semi_def_matrix = V_i)
+
+
+0.5*(-tr(P) + t(y) %*% P %*% P %*% y)
+0.5*(-tr(P %*% V_i[[2]]) + t(y) %*% P %*% V_i[[2]] %*% P %*% y)
+0.5*(-tr(P %*% V_i[[3]]) + t(y) %*% P %*% V_i[[3]] %*% P %*% y)
+```
+
+
+Testing if the `find_remle_parameters()` calculates the right things:
+
+```{r}
+init_params <- c(1,1,1)
+small_value_threshold = 1e-12
+add_small_constant = 1e-12
+
+out <- Map(reml_score_fisher_function, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(init_params))
+
+# Sum blocks
+S_sum <- Reduce('+',lapply(out, function(x) x$S))
+
+# Setting very small values to 0
+S_sum[S_sum < small_value_threshold] <- 0
+
+# Adding small value to diagonal if diagonal values are very small
+S_sum <- S_sum + (S_sum < small_value_threshold) * add_small_constant
+S_sum
+
+# Define inverse fisher information
+fisher_inv <- chol2inv(chol(S_sum))
+fisher_inv
+
+# Sum scores
+score <- rowSums(sapply(out, function(x) x$score))
+score
+
+#Calculate update step
+update_step <- fisher_inv %*% score
+```
+
+
+
+
+
+
+
+

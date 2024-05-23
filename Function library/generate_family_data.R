@@ -188,7 +188,7 @@ family_dataset_generator <- function(n_clusters, n_individuals_in_cluster, n_mea
   
   # Defining semi_def_matrices which is a list containing n_clusters replicas of the gamma_list
   semi_def_matrices <- replicate(n_clusters,
-                                 list(gamma0_matrix, gamma1_matrix, generate_kinship_matrix(n_individuals = n_individuals_in_cluster)),
+                                 list(gamma0_matrix, gamma1_matrix, generate_kinship_matrix(n_individuals = n_individuals_in_cluster)*2),
                                  simplify = F)
   
   #---------------------------------------------------------------------------------------------------------------------------------

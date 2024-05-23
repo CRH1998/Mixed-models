@@ -24,7 +24,7 @@ n_individuals_in_cluster = 30
 #Generate large dataset
 family_dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
                                            n_mean_param = 2, mean_val = 1, beta_1 = 5,
-                                           sigma_0 = 1, sigma_1 = 3, sigma_2 = 5,
+                                           sigma_0 = 2, sigma_1 = 1, sigma_2 = 1,
                                            seed = NA)
 
 
@@ -42,7 +42,7 @@ Lets have a look at how the design matrices look like:
 
 Lets have a look at how the covariance matrices look like:
 ```{r}
-semi_def_matrices[[1]]
+#semi_def_matrices[[1]]
 ```
 
 
@@ -50,7 +50,7 @@ We can now run the fisher scoring algorithms
 
 ```{r}
 find_mle_parameters(init_params = c(1,1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
-find_remle_parameters(init_params = c(1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
+find_remle_parameters(init_params = c(1,2,3), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
 ```
 
 

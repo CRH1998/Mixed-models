@@ -19,14 +19,14 @@
 #-------------------------------------------
 #       REML fisher scoring function
 #-------------------------------------------
-reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params, small_value_threshold = 1e-12, add_small_constant = 1e-12){
+reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, params, small_value_threshold = 1e-18, add_small_constant = 1e-12){
   
 
   # Calculating omega inverse
   omega <- omega_func(semi_def_matrix = semi_def_matrix, sigma2_vec = params)
   
   # Setting very small values to 0
-  omega[omega < small_value_threshold] <- 0
+  #omega[omega < small_value_threshold] <- 0
   
   # Adding small value to diagonal if diagonal values are very small
   omega <- omega + (diag(omega) < small_value_threshold) * add_small_constant * diag(length(diag(omega)))
@@ -60,7 +60,7 @@ reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes,
 #       REML fisher scoring algorithm
 #-------------------------------------------
 find_remle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, max_iter = 1000000, 
-                                  tolerance = 1e-6, update_step_size = 1, small_value_threshold = 1e-12, add_small_constant = 1e-6){
+                                  tolerance = 1e-15, update_step_size = 1, small_value_threshold = 1e-12, add_small_constant = 1e-20){
   
   for (iter in 1:max_iter) {
     print(iter)
@@ -70,13 +70,15 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     S_sum <- Reduce('+',lapply(out, function(x) x$S))
     
     # Setting very small values to 0
-    S_sum[S_sum < small_value_threshold] <- 0
+    #S_sum[S_sum < small_value_threshold] <- 0
     
     # Adding small value to diagonal if diagonal values are very small
-    S_sum <- S_sum + (S_sum < small_value_threshold) * add_small_constant
+    #S_sum <- S_sum + (S_sum < small_value_threshold) * add_small_constant 
+    S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
     
     
     # Define inverse fisher information
+    #fisher_inv <- pseudoinverse(S_sum, small_value_threshold)
     fisher_inv <- chol2inv(chol(S_sum))
     
     
@@ -87,7 +89,7 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     #Calculate update step
     update_step <- fisher_inv %*% score
     
-    print(update_step)
+    #print(update_step)
     
     # Check for convergence
     if (sum((update_step)^2) < tolerance) {
@@ -96,9 +98,13 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     
     # Update parameters for the next iteration
     init_params <- init_params + update_step_size * update_step
+    
+    #writeLines(paste0("Uncorrected init_params", init_params))
+    
+    init_params[init_params < 0] <- init_params[init_params < 0]^2 #1e-12
+    #writeLines(paste0("Corrected init_params", init_params))
+    print(init_params)
   }
-  
-  init_params[init_params < 0] <- 1e-12
   
   return(init_params)
 }

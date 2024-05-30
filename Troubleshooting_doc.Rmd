@@ -1,0 +1,170 @@
+---
+title: "Troubleshooting"
+output: html_document
+---
+
+# Beskrivelse af dokumentets opbygning
+
+Dokumentet har til formål at udpensle, hvorfor REML fisher-scoring algoritmen har udfordringer. Udfordringerne kommer, når fisher information skal inverteres. Vi gennemgår koden skridt for skridt, så man kan følge, hvad der regnes hvornår og hvordan.
+
+ 
+Først sources de relevante scripts. Koden kan findes på https://github.com/CRH1998/Mixed-models.
+
+```{r warning=FALSE, message=FALSE}
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/Function library/function_library.R", local = knitr::knit_global())
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/Function library/generate_family_data.R", local = knitr::knit_global())
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+```
+
+## Data simuleres
+
+Vi indleder med at simulere data til at køre algoritmen. Antal af clusters sættes til $100$ og antallet af individer i hvert cluster sættes til $10$. Vi vælger at simulere data med en enkelt fixed-effect parameter (intercept = 1) og 3 random effect parametrer (intercept $V_I$, household $V_H$, relation $V_R$). Residualvariansen (intercept) sættes til $2$, householdvariansen sættes til $1$ og relationsvariansen sættes til $3$:
+  
+```{r}
+n_clusters = 100
+n_individuals_in_cluster = 10
+
+#Generate large dataset
+family_dataset <- family_dataset_generator(n_clusters = n_clusters, 
+                                           n_individuals_in_cluster = n_individuals_in_cluster,
+                                           n_mean_param = 1, mean_val = 1,
+                                           sigma_0 = 2, sigma_1 = 1, sigma_2 = 3,
+                                           seed = 1)
+
+
+#Extract relevant lists from data to run FS-algorithms
+design_matrices <- family_dataset$design_matrices
+semi_def_matrices <- family_dataset$semi_def_matrices
+outcome <- family_dataset$outcome_list
+```
+
+Vi tjekker et udsnit af det simulerede data. Design matricerne er alle identitiske:
+```{r}
+design_matrices[[1]]
+```
+
+Varians matricerne for de to første familier er givet ved:
+  
+```{r}
+semi_def_matrices[1:2]
+```
+
+Outcomes for de to første familier:
+
+```{r}
+outcome[1:2]
+```
+
+
+## Fisher scoring algoritmen
+Vi beregner nu de relevante størrelser for at køre Fisher scoring algoritmen. Vi skal regne størrelserne for hver familie og summere til sidst. Som eksempel, udfører vi beregningerne for den første familie. Den første families data gemmes:
+  
+```{r}
+X <- design_matrices[[1]]       # First family design matrix
+V_i <- semi_def_matrices[[1]]   # First family variance matrices
+y <- outcome[[1]]               # First family outcome
+```
+
+Den samlede varians beregnes ved $$ V = \sigma_I V_I + \sigma_H V_H + \sigma_R V_R$$
+Vi sætter $\sigma_I = \sigma_H = \sigma_R = 1$, som initial-værdier og beregner $V$:
+  
+
+```{r}
+params <- c(1,1,1)
+
+# Calculating V
+V <- omega_func(semi_def_matrix = V_i, sigma2_vec = params)
+V
+```
+
+For at bestemme fisher-informationen  
+$$S = \frac{1}{2}tr(P V_i P V_j), \quad i \in \{I, H,R\} $$
+beregner vi først
+
+$$ P = V^{-1} - V^{-1} X(X^T V^{-1} X)^{-1} X^T V^{-1} $$
+  
+```{r}
+# Invert V
+V_inv <- chol2inv(chol(V))
+
+# Calculate P
+P <- P_func(omega_inv = V_inv, design_matrix = X)
+
+P
+```
+
+Vi beregner så fisher informationen. Det er denne matrix, der volder problemer, da indgangene i matricen er meget små:
+
+```{r}
+S <- S_matrix_reml_function(P = P, semi_def_matrix = V_i)
+S
+```
+Det er specielt alle indgange, hvor har noget med $P$ ganges med $V_H$:
+
+```{r}
+P %*% V_i[[2]]
+```
+
+Det betyder, at sporet af $P V_H P V_H$ eller sporet af andre matrixprodukter med $P V_H$, bliver utrolig småt:
+
+```{r}
+0.5 * tr(P %*% V_i[[1]] %*% P %*% V_i[[2]])
+0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[1]])
+0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[2]])
+0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[3]])
+0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[2]])
+```
+ML algoritmen har ikke det samme problem, idet $S$-matricen regnes ved $$\frac{1}{2}(V^{-1} V_i V^{-1} V_i)$$
+hvilket giver
+```{r}
+0.5 * tr(V_inv %*% V_i[[1]] %*% V_inv %*% V_i[[2]])
+0.5 * tr(V_inv %*% V_i[[2]] %*% V_inv %*% V_i[[1]])
+0.5 * tr(V_inv %*% V_i[[2]] %*% V_inv %*% V_i[[2]])
+0.5 * tr(V_inv %*% V_i[[2]] %*% V_inv %*% V_i[[3]])
+0.5 * tr(V_inv %*% V_i[[3]] %*% V_inv %*% V_i[[2]])
+```
+
+Selv når vi lægger blokkene sammen, forbliver værdierne små. Her køres en iteration af REML fisher-scoring algoritmen på alle familier:
+
+```{r}
+init_params <- c(1,1,1)
+small_value_threshold = 1e-20
+add_small_constant = 1e-12
+
+out <- Map(reml_score_fisher_function, design_matrices, semi_def_matrices, outcome, MoreArgs = list(init_params))
+
+# Sum blocks
+S_sum <- Reduce('+',lapply(out, function(x) x$S))
+cat('S pre correction')
+S_sum
+writeLines(c("Determinant of S pre correction: ", det(S_sum)))
+
+
+# Adding small value to diagonal if diagonal values are very small
+S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
+cat('S post correction:')
+S_sum
+writeLines(c("Determinant of S post correction: ", det(S_sum)))
+
+# Define inverse fisher information
+fisher_inv <- chol2inv(chol(S_sum))
+fisher_inv
+
+# Sum scores
+score <- rowSums(sapply(out, function(x) x$score))
+score
+
+#Calculate update step
+update_step <- fisher_inv %*% score
+update_step
+
+init_params <- init_params + update_step
+init_params[init_params < 0] <- init_params[init_params < 0]^2
+init_params
+```
+
+
+Jeg har prøvet at lægge en del forskellige små værdier til diagonalen, men da fisher informationen har indgange med virkelig lave værdier ender det med, at det bliver de arbitrære værdier, jeg lægger til, der styrer det hele, så algoritmen rykker ikke ved estimatet. Hvis værdien, der lægges til ikke er stor nok, konvergerer algoritmen ikke. Jeg har ikke været i stand til at finde et sweet-spot.
+
+

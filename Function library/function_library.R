@@ -11,6 +11,7 @@ library(foreach)              # For parallel computation
 library(doParallel)           # For parallel computation
 library(MASS)                 # For mvrnorm()
 library(kinship2)             # For family data
+library(corpcor)              # For pseudoinverse
 library(dplyr)
 
 ############################################################################# 
@@ -186,6 +187,8 @@ P_func <- function(omega_inv, design_matrix){
   
   P <- omega_inv - t(A) %*% chol2inv(chol(A %*% design_matrix)) %*% A
   
+  #P <- omega_inv - omega_inv %*% design_matrix %*% solve((t(design_matrix) %*% omega_inv %*% design_matrix)) %*% t(design_matrix) %*% omega_inv
+  
   return(P)
 }
 
@@ -218,7 +221,7 @@ S_matrix_reml_function <- function(P, semi_def_matrix){
   
   for (i in 1:length(semi_def_matrix)){
     for (j in 1:length(semi_def_matrix)){
-      S[i,j] <- 0.5 * tr(P %*% semi_def_matrix[[j]] %*% P %*% semi_def_matrix[[i]])
+      S[i,j] <- 0.5 * tr(P %*% semi_def_matrix[[i]] %*% P %*% semi_def_matrix[[j]])
     }
   }
   
@@ -235,7 +238,7 @@ reml_score_func <- function(P, outcomes, semi_def_matrix){
   # Calculating score of variance components
   sigma_scores <- c()
   
-  for (i in 1:length(A)){
+  for (i in 1:length(semi_def_matrix)){
     sigma_scores[i] <- - 0.5 * (tr(P %*% semi_def_matrix[[i]]) - (t(outcomes) %*% P %*% semi_def_matrix[[i]]) %*% (P %*% outcomes))
   }
 

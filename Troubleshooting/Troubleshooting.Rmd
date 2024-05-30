@@ -7,21 +7,21 @@ output: html_document
 We start by sourcing relevant scripts
 
 ```{r warning=FALSE}
-source("Function library/function_library.R", local = knitr::knit_global())
-source("Function library/generate_family_data.R", local = knitr::knit_global())
-source("ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
-source("REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+source("Mixed-models/Function library/function_library.R", local = knitr::knit_global())
+source("Mixed-models/Function library/generate_family_data.R", local = knitr::knit_global())
+source("Mixed-models/ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+source("Mixed-models/REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
 ```
 
 There is a problem with REML, so we start troubleshooting. First step is generating some data:
 
 ```{r}
-n_clusters = 10
-n_individuals_in_cluster = 10
+n_clusters = 10000
+n_individuals_in_cluster = 30
 
 #Generate large dataset
 family_dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
-                                           n_mean_param = 2, mean_val = 1, beta_1 = 5,
+                                           n_mean_param = 1, mean_val = 1, beta_1 = 5,
                                            sigma_0 = 2, sigma_1 = 1, sigma_2 = 1,
                                            seed = NA)
 
@@ -38,7 +38,7 @@ Testing if the `reml_score_fisher_function()` calculates the right things:
 params <- c(1,1,1)
 X <- design_matrices[[1]]
 V_i <- semi_def_matrices[[1]]
-y <- outcome[[1]]
+y <- outcome_list[[1]]
 
 # Calculating omega inverse
 omega <- omega_func(semi_def_matrix = V_i, sigma2_vec = params)
@@ -84,8 +84,8 @@ Testing if the `find_remle_parameters()` calculates the right things:
 
 ```{r}
 init_params <- c(1,1,1)
-small_value_threshold = 1e-12
-add_small_constant = 1e-12
+small_value_threshold = 1e-32
+add_small_constant = 1e-18
 
 out <- Map(reml_score_fisher_function, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(init_params))
 
@@ -93,7 +93,7 @@ out <- Map(reml_score_fisher_function, design_matrices, semi_def_matrices, outco
 S_sum <- Reduce('+',lapply(out, function(x) x$S))
 
 # Setting very small values to 0
-S_sum[S_sum < small_value_threshold] <- 0
+#S_sum[S_sum < small_value_threshold] <- 0
 
 # Adding small value to diagonal if diagonal values are very small
 S_sum <- S_sum + (S_sum < small_value_threshold) * add_small_constant
@@ -109,9 +109,54 @@ score
 
 #Calculate update step
 update_step <- fisher_inv %*% score
+
+init_params <- init_params + update_step
 ```
 
-Note that the S_sum is has really small entries, so it is essentially arbitrary values that the algorithm runs on.
+Note that the S_sum has really small entries, so it is essentially arbitrary values that the algorithm runs on.
+
+
+
+```{r}
+init_params <- c(1,1,1,1,1)
+small_value_threshold = 1e-12
+add_small_constant = 1e-12
+
+out <- Map(score_fisher_function, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(init_params))
+    
+    
+    # Sum blocks
+    M_sum <- Reduce('+',lapply(out, function(x) x$M))
+    S_sum <- Reduce('+',lapply(out, function(x) x$S))
+    
+    
+    # Setting very small values to 0
+    M_sum[M_sum < small_value_threshold] <- 0
+    S_sum[S_sum < small_value_threshold] <- 0
+    
+    # Adding small value to diagonal if diagonal values are very small
+    M_sum <- M_sum + (diag(M_sum) < small_value_threshold) * add_small_constant * diag(length(diag(M_sum)))
+    S_sum <- S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
+    
+    
+    # Define inverse fisher information
+    fisher_inv <- bdiag(chol2inv(chol(M_sum)), chol2inv(chol(S_sum)))
+    
+    # Sum scores
+    score <- rowSums(sapply(out, function(x) x$score))
+    
+    #Calculate update step
+    update_step <- fisher_inv %*% score
+```
+Note that the values of S_sum and M_sum are not small, why the algorithm works. The difference is that 
+
+
+$$ S_{ML} = \frac{1}{2}tr(V^{-1}V_iV^{-1} V_j), \qquad S_{REML} = \frac{1}{2}tr(P V_i P V_j) $$
+where
+
+$$ P = V^{-1} - V^{-1} X(X^T V^{-1} X)^{-1} X^T V^{-1} $$
+
+So the issue is that when $V_i$ is all ones then $P V_iPV_i$ becomes very small.
 
 
 

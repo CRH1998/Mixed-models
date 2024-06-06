@@ -23,20 +23,21 @@ Vi indleder med at simulere data til at køre algoritmen. Antal af clusters sæt
   
 ```{r}
 n_clusters = 100
-n_individuals_in_cluster = 10
+n_individuals_in_cluster = 20
 
 #Generate large dataset
 family_dataset <- family_dataset_generator(n_clusters = n_clusters, 
                                            n_individuals_in_cluster = n_individuals_in_cluster,
-                                           n_mean_param = 1, mean_val = 1,
+                                           n_mean_param = 1, mean_val = 0, n_variance_param = 2,
                                            sigma_0 = 2, sigma_1 = 1, sigma_2 = 3,
-                                           seed = 1)
+                                           seed = NA)
 
 
 #Extract relevant lists from data to run FS-algorithms
 design_matrices <- family_dataset$design_matrices
 semi_def_matrices <- family_dataset$semi_def_matrices
 outcome <- family_dataset$outcome_list
+var(as.vector(sapply(outcome, function(x){return(x)})))
 ```
 
 Vi tjekker et udsnit af det simulerede data. Design matricerne er alle identitiske:
@@ -71,7 +72,7 @@ Vi sætter $\sigma_I = \sigma_H = \sigma_R = 1$, som initial-værdier og beregne
   
 
 ```{r}
-params <- c(1,1,1)
+params <- c(1,1)
 
 # Calculating V
 V <- omega_func(semi_def_matrix = V_i, sigma2_vec = params)
@@ -89,7 +90,7 @@ $$ P = V^{-1} - V^{-1} X(X^T V^{-1} X)^{-1} X^T V^{-1} $$
 V_inv <- chol2inv(chol(V))
 
 # Calculate P
-P <- P_func(omega_inv = V_inv, design_matrix = X)
+P <- V_inv - V_inv %*% X %*% chol2inv(chol((t(X) %*% V_inv %*% X))) %*% t(X) %*% V_inv
 
 P
 ```
@@ -128,9 +129,9 @@ hvilket giver
 Selv når vi lægger blokkene sammen, forbliver værdierne små. Her køres en iteration af REML fisher-scoring algoritmen på alle familier:
 
 ```{r}
-init_params <- c(1,1,1)
+init_params <- c(2,2)
 small_value_threshold = 1e-20
-add_small_constant = 1e-12
+add_small_constant = 1e-6
 
 out <- Map(reml_score_fisher_function, design_matrices, semi_def_matrices, outcome, MoreArgs = list(init_params))
 
@@ -160,7 +161,6 @@ update_step <- fisher_inv %*% score
 update_step
 
 init_params <- init_params + update_step
-init_params[init_params < 0] <- init_params[init_params < 0]^2
 init_params
 ```
 

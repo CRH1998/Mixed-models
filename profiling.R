@@ -1,8 +1,8 @@
 #Profiling algorithm
 
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 400
-n_individuals_in_cluster = 12
+n_clusters = 1
+n_individuals_in_cluster = 24
 
 
 #Generate large dataset
@@ -60,16 +60,16 @@ Rprof(NULL)
 log_likelihood(design_matrices, semi_def_matrices, outcome, c(0.93232, 4.99647, 3.03114, 2.831, 4.130, 7.545, 2.963))
 
 
-restricted_log_likelihood(design_matrices, semi_def_matrices, outcome, c(3.090583,4.671067,6.638998))
+restricted_log_likelihood_block(design_matrices[[1]], semi_def_matrices[[1]], outcome[[1]], c(2.405801, 5))
 
-lower_bounds <- c(-Inf, -Inf, -Inf, 0.000001, 0.000001, 0.000001, 0.000001)
-upper_bounds <- c(Inf, Inf, Inf, Inf, Inf, Inf, Inf)
+lower_bounds <- c(0.000001, 0.000001)
+upper_bounds <- c(Inf, Inf)
 
-optim(par = c(1,1,1,1,1,1,1), 
-      fn = log_likelihood, 
-      design_matrices = design_matrices, 
-      semi_def_matrices = semi_def_matrices, 
-      outcome_list = outcome,
+optim(par = c(1,2), 
+      fn = restricted_log_likelihood_block,
+      design_matrix = design_matrices[[1]], 
+      semi_def_matrix = semi_def_matrices[[1]], 
+      outcomes = outcome[[1]],
       lower = lower_bounds,
       upper = upper_bounds,
       method = 'L-BFGS-B',
@@ -82,7 +82,7 @@ DF <- large_dataset$DF
 model <- lme4::lmer(y ~ 1 + (1|klasse), data=DF, REML = T)
 summary_model <- summary(model)
 summary_model$logLik
-log_likelihood(design_matrices, semi_def_matrices, outcome, mle_parameters)
+#log_likelihood(design_matrices, semi_def_matrices, outcome, mle_parameters)
 summary_model
 
 

@@ -4,79 +4,117 @@ author: "Christian Rubjerg Hejstvig-Larsen"
 output: html_document
 ---
 
-We start by sourcing relevant scripts
+Først sources de relevante scripts. Koden kan findes på https://github.com/CRH1998/Mixed-models.
 
 ```{r warning=FALSE}
-source("Mixed-models/Function library/function_library.R", local = knitr::knit_global())
-source("Mixed-models/Function library/generate_family_data.R", local = knitr::knit_global())
-source("Mixed-models/ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
-source("Mixed-models/REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/Function library/function_library.R", local = knitr::knit_global())
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/Function library/generate_family_data.R", local = knitr::knit_global())
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+source("C:/Users/brf337/Desktop/Mixed models/Mixed-models/REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
 ```
 
-There is a problem with REML, so we start troubleshooting. First step is generating some data:
+Vi indleder med at simulere data til at køre algoritmen. Antal af clusters sættes til $100$ og antallet af individer i hvert cluster sættes til $10$. Vi vælger at simulere data med en enkelt fixed-effect parameter (intercept = 1) og 3 random effect parametrer (intercept $V_I$, household $V_H$, relation $V_R$). Residualvariansen (intercept) sættes til $2$, householdvariansen sættes til $1$ og relationsvariansen sættes til $3$:
 
 ```{r}
-n_clusters = 10000
-n_individuals_in_cluster = 30
+n_clusters = 100
+n_individuals_in_cluster = 10
 
 #Generate large dataset
 family_dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
-                                           n_mean_param = 1, mean_val = 1, beta_1 = 5,
-                                           sigma_0 = 2, sigma_1 = 1, sigma_2 = 1,
-                                           seed = NA)
+                                           n_mean_param = 2, mean_val = 1,
+                                           sigma_0 = 2, sigma_1 = 1, sigma_2 = 3,
+                                           seed = 1)
 
 
 #Extract relevant lists from data to run FS-algorithms
 design_matrices <- family_dataset$design_matrices
 semi_def_matrices <- family_dataset$semi_def_matrices
-outcome_list <- family_dataset$outcome_list
+outcome <- family_dataset$outcome_list
 ```
 
-Testing if the `reml_score_fisher_function()` calculates the right things:
+Vi tjekker et udsnit af det simulerede data. Design matricerne er alle identitiske:
+```{r}
+#design_matrices[[1]]
+```
+
+Varians matricerne for de to første familier:
+
+```{r}
+#semi_def_matrices[1:2]
+```
+
+Outcomes for de to første familier:
+
+```{r}
+#outcome[1:2]
+```
+Vi beregner nu de relevante størrelser for at køre Fisher scoring algoritmen. Vi skal regne størrelserne for hver familie, men vi eksemplificerer i første omgang, beregningerne med for den første familie. Den første families data gemmes:
+
+```{r}
+X <- design_matrices[[1]]       # First family design matrix
+V_i <- semi_def_matrices[[1]]   # First family variance matrices
+y <- outcome[[1]]               # First family outcome
+```
+
+Den samlede varians beregnes ved $$ V = \sigma_I V_I + \sigma_H V_H + \sigma_R V_R$$
+Vi sætter $\sigma_I = \sigma_H = \sigma_R = 1$, som initial-værdier og beregner $V$:
+
 
 ```{r}
 params <- c(1,1,1)
-X <- design_matrices[[1]]
-V_i <- semi_def_matrices[[1]]
-y <- outcome_list[[1]]
 
-# Calculating omega inverse
-omega <- omega_func(semi_def_matrix = V_i, sigma2_vec = params)
+
+# Calculating V
+V <- omega_func(semi_def_matrix = V_i, sigma2_vec = params)
+V
+```
+For at bestemme fisher-informationen  
+$$S = \frac{1}{2}tr(P V_i P V_j), \quad i \in \{I, H,R\} $$
+beregner vi først
+
+$$ P = V^{-1} - V^{-1} X(X^T V^{-1} X)^{-1} X^T V^{-1} $$
+
+```{r}
 
 # Inverting omega
-omega_inv <- chol2inv(chol(omega))
+V_inv <- chol2inv(chol(V))
 
 # Calculating P matrix
 V_inv <- omega_inv
 
-P_test <- omega_inv - omega_inv %*% X %*% solve((t(X) %*% omega_inv %*% X)) %*% t(X) %*% omega_inv
+P_test <- omega_inv -  omega_inv %*% X %*% solve(((t(X) %*% omega_inv) %*% X)) %*% (t(X) %*% omega_inv)
 P <- P_func(omega_inv = V_inv, design_matrix = X)
 
-P_test - P
+tr(V_inv %*% V_i[[2]] %*% V_inv %*% V_i[[2]])
+tr(P %*% V_i[[2]] %*% P %*% V_i[[2]])
+
+log_transformed_P <- sign(P) * log(abs(P))
+
+paste0('Sum of differences between manually calculated P and P calculated by function: ', sum(P_test - P))
 
 #-------------Calculating S matrix-----------------
-S <- S_matrix_reml_function(P = P, semi_def_matrix = V_i)
+S <- S_matrix_reml_function(P = log_transformed_P, semi_def_matrix = V_i)
 
-S
+S_test <- matrix(c(0.5 * tr(P%*%P),
+                   0.5 * tr(P %*% V_i[[1]] %*% P %*% V_i[[2]]),
+                   0.5 * tr(P %*% V_i[[1]] %*% P %*% V_i[[3]]),
+                   0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[1]]),
+                   0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[2]]),
+                   0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[3]]),
+                   0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[1]]),
+                   0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[2]]),
+                   0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[3]])),
+                 ncol = 3, nrow = 3, byrow = T)
 
-0.5 * tr(P%*%P)
-0.5 * tr(P %*% V_i[[1]] %*% P %*% V_i[[2]])
-0.5 * tr(P %*% V_i[[1]] %*% P %*% V_i[[3]])
-0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[1]])
-0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[2]])
-0.5 * tr(P %*% V_i[[2]] %*% P %*% V_i[[3]])
-0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[1]])
-0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[2]])
-0.5 * tr(P %*% V_i[[3]] %*% P %*% V_i[[3]])
-
+paste0('Differences between manually calculated S and S calculated by function: ', S_test - S)
 
 #-------------Calculating scores-------------------
 score <- reml_score_func(P = P, outcomes = y, semi_def_matrix = V_i)
 
-
-0.5*(-tr(P) + t(y) %*% P %*% P %*% y)
-0.5*(-tr(P %*% V_i[[2]]) + t(y) %*% P %*% V_i[[2]] %*% P %*% y)
-0.5*(-tr(P %*% V_i[[3]]) + t(y) %*% P %*% V_i[[3]] %*% P %*% y)
+score_test <- c(0.5*(-tr(P) + (t(y) %*% P) %*% (P %*% y)),
+                0.5*(-tr(P %*% V_i[[2]]) + (t(y) %*% P) %*% V_i[[2]] %*% (P %*% y)),
+                0.5*(-tr(P %*% V_i[[3]]) + (t(y) %*% P) %*% V_i[[3]] %*% (P %*% y)))
+paste0('Differences between manually calculated score and score calculated by function: ', score_test - score)
 ```
 
 
@@ -84,33 +122,51 @@ Testing if the `find_remle_parameters()` calculates the right things:
 
 ```{r}
 init_params <- c(1,1,1)
-small_value_threshold = 1e-32
-add_small_constant = 1e-18
+small_value_threshold = 1e-20
+add_small_constant = 1e-15
 
-out <- Map(reml_score_fisher_function, design_matrices, semi_def_matrices, outcome_list, MoreArgs = list(init_params))
+out <- Map(reml_score_fisher_function, design_matrices, semi_def_matrices, outcome, MoreArgs = list(init_params))
 
 # Sum blocks
 S_sum <- Reduce('+',lapply(out, function(x) x$S))
+
+writeLines(c('S pre correction'))
+S_sum
+writeLines(c("Determinant of S pre correction: ", det(S_sum)))
 
 # Setting very small values to 0
 #S_sum[S_sum < small_value_threshold] <- 0
 
 # Adding small value to diagonal if diagonal values are very small
-S_sum <- S_sum + (S_sum < small_value_threshold) * add_small_constant
+#S_sum <- S_sum + (S_sum < small_value_threshold) * add_small_constant
+S_sum[abs(S_sum) < small_value_threshold] <- S_sum[abs(S_sum) < small_value_threshold]*5 #S_sum + (diag(S_sum) < small_value_threshold) * add_small_constant * diag(length(diag(S_sum)))
+cat('S post correction:')
 S_sum
+writeLines(c("Determinant of S post correction: ", det(S_sum)))
 
 # Define inverse fisher information
 fisher_inv <- chol2inv(chol(S_sum))
+#fisher_inv <- pseudoinverse(S_sum)
+cat('fisher_inv')
 fisher_inv
 
 # Sum scores
 score <- rowSums(sapply(out, function(x) x$score))
+cat('score:')
 score
+#writeLines(paste0('Score: ', score))
 
 #Calculate update step
 update_step <- fisher_inv %*% score
+cat('Update_step:')
+update_step
+#writeLines(paste0('Update step: ', update_step))
 
 init_params <- init_params + update_step
+init_params[init_params < 0] <- init_params[init_params < 0]^2
+
+cat('init_params:')
+init_params
 ```
 
 Note that the S_sum has really small entries, so it is essentially arbitrary values that the algorithm runs on.
@@ -161,5 +217,34 @@ So the issue is that when $V_i$ is all ones then $P V_iPV_i$ becomes very small.
 
 
 
+```{r}
+sigma_1 <- 3
+sigma_2 <- 3
+sigma_3 <- 3
+
+V_1 <- diag(3)
+V_2 <- matrix(rep(1,9), ncol = 3)
+V_3 <- matrix(c(1,0.5,0.25, 0.5, 1, 0.5, 0.25,0.5,1), ncol = 3)
+
+V <- sigma_1 * V_1 + sigma_2 * V_2 + sigma_3 * V_3
+V_inv <- solve(V)
+V_inv_chol <- chol2inv(chol(V))
+
+X <- c(1,1,1)
+
+P <- V_inv - V_inv %*% X %*% solve(t(X) %*% V_inv %*% X) %*% t(X) %*% V_inv
+
+S <- matrix(c(1/2 * tr(P %*% V_1 %*% P %*% V_1),
+              1/2 * tr(P %*% V_1 %*% P %*% V_2),
+              1/2 * tr(P %*% V_1 %*% P %*% V_3),
+              1/2 * tr(P %*% V_2 %*% P %*% V_1),
+              1/2 * tr(P %*% V_2 %*% P %*% V_2),
+              1/2 * tr(P %*% V_2 %*% P %*% V_3),
+              1/2 * tr(P %*% V_3 %*% P %*% V_1),
+              1/2 * tr(P %*% V_3 %*% P %*% V_2),
+              1/2 * tr(P %*% V_3 %*% P %*% V_3)),
+            ncol = 3, nrow = 3)
+solve(S)
+```
 
 

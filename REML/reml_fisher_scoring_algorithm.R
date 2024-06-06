@@ -34,6 +34,7 @@ reml_score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes,
   # Inverting omega
   omega_inv <- chol2inv(chol(omega))
   
+  
   # Calculating P matrix
   P <- P_func(omega_inv = omega_inv, design_matrix = design_matrix)
   
@@ -101,7 +102,7 @@ find_remle_parameters <- function(init_params, design_matrices, semi_def_matrice
     
     #writeLines(paste0("Uncorrected init_params", init_params))
     
-    init_params[init_params < 0] <- init_params[init_params < 0]^2 #1e-12
+    init_params[init_params < 0] <- 0.001 #init_params[init_params < 0]^2 #1e-12
     #writeLines(paste0("Corrected init_params", init_params))
     print(init_params)
   }

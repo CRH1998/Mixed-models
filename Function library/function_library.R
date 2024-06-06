@@ -87,8 +87,17 @@ matrix_mult_list_by_matrix <- function(matrix, list, mult_by_right = F){
 }
 
 
+#-------------------------------------------
+#         List helper functions
+#-------------------------------------------
 
+get_outcome_mean <- function(outcome){
+  return(mean(as.vector(sapply(outcome, function(x){return(x)}))))
+}
 
+get_outcome_variance <- function(outcome){
+  return(var(as.vector(sapply(outcome, function(x){return(x)}))))
+}
 
 
 
@@ -221,7 +230,7 @@ S_matrix_reml_function <- function(P, semi_def_matrix){
   
   for (i in 1:length(semi_def_matrix)){
     for (j in 1:length(semi_def_matrix)){
-      S[i,j] <- 0.5 * tr(P %*% semi_def_matrix[[i]] %*% P %*% semi_def_matrix[[j]])
+      S[j,i] <- 0.5 * tr(P %*% semi_def_matrix[[i]] %*% P %*% semi_def_matrix[[j]])
     }
   }
   

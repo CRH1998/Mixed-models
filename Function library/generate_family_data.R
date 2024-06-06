@@ -163,7 +163,7 @@ generate_n_kinship_matrices <- function(n_individuals_in_cluster, n_clusters, se
 
 
 # Generate data set for testing
-family_dataset_generator <- function(n_clusters, n_individuals_in_cluster, n_mean_param = 3,
+family_dataset_generator <- function(n_clusters, n_individuals_in_cluster, n_variance_param = 3, n_mean_param = 3,
                                      mean_val = 1, beta_1 = 3, beta_2 = 3, sigma_0 = 1, sigma_1 = 1, sigma_2 = 1, seed = 1){
   
   # Set seed if specified for sampling later on
@@ -180,16 +180,27 @@ family_dataset_generator <- function(n_clusters, n_individuals_in_cluster, n_mea
   
   
   #Matrix of ones indicating family relation
-  gamma1_matrix <- matrix(1, nrow = n_individuals_in_cluster, ncol = n_individuals_in_cluster) 
+  gamma1_matrix <- matrix(1, nrow = n_individuals_in_cluster, ncol = n_individuals_in_cluster) + as.matrix(diag(0.0, nrow = n_individuals_in_cluster))
   #gamma1_matrix <- as.matrix(bdiag(matrix(1, nrow = floor(n_individuals_in_cluster/2), ncol = floor(n_individuals_in_cluster/2)), matrix(1, nrow = ceiling(n_individuals_in_cluster/2), ncol = ceiling(n_individuals_in_cluster/2))))
   
 
   
   
   # Defining semi_def_matrices which is a list containing n_clusters replicas of the gamma_list
-  semi_def_matrices <- replicate(n_clusters,
-                                 list(gamma0_matrix, gamma1_matrix, generate_kinship_matrix(n_individuals = n_individuals_in_cluster)*2),
-                                 simplify = F)
+  if (n_variance_param == 1){
+    semi_def_matrices <- replicate(n_clusters,
+                                   list(gamma1_matrix),
+                                   simplify = F)
+  } else if (n_variance_param == 2){
+    semi_def_matrices <- replicate(n_clusters,
+                                   list(gamma0_matrix, gamma1_matrix), 
+                                   simplify = F)
+  } else if (n_variance_param == 3){
+    semi_def_matrices <- replicate(n_clusters,
+                                   list(gamma0_matrix, gamma1_matrix, generate_kinship_matrix(n_individuals = n_individuals_in_cluster)*2),
+                                   simplify = F)
+  }
+
   
   #---------------------------------------------------------------------------------------------------------------------------------
   
@@ -223,6 +234,7 @@ family_dataset_generator <- function(n_clusters, n_individuals_in_cluster, n_mea
   # Sampling n_clusters outcomes from a multivariate normal distribution with specified mean and covariance structure with n_individuals in each cluster
   # Adding mean-value parameters if specified
   outcome_list <- list()
+  if (n_variance_param == 3){
   if (n_mean_param == 1){
     for (i in 1:n_clusters){
       outcome_list[[i]] <- mvrnorm(n = 1, mu = rep(mean_val, n_individuals_in_cluster), Sigma = semi_def_matrices[[i]][[1]] * sigma_0 + semi_def_matrices[[i]][[2]] * sigma_1 + semi_def_matrices[[i]][[3]] * sigma_2)
@@ -235,6 +247,15 @@ family_dataset_generator <- function(n_clusters, n_individuals_in_cluster, n_mea
     for (i in 1:n_clusters){
       outcome_list[[i]] <- mvrnorm(n = 1, mu = rep(mean_val, n_individuals_in_cluster), Sigma = semi_def_matrices[[i]][[1]] * sigma_0 + semi_def_matrices[[i]][[2]] * sigma_1 + semi_def_matrices[[i]][[3]] * sigma_2)  
       + beta_1 * design_matrices[[i]][,2] + beta_2 * design_matrices[[i]][,3] + 4 * design_matrices[[i]][,4] + 5 * design_matrices[[i]][,5] + 6 * design_matrices[[i]][,6]
+    }
+  }
+  } else if (n_variance_param == 2) {
+    for (i in 1:n_clusters){
+      outcome_list[[i]] <- mvrnorm(n = 1, mu = rep(mean_val, n_individuals_in_cluster), Sigma = semi_def_matrices[[i]][[1]] * sigma_0 + semi_def_matrices[[i]][[2]] * sigma_1)
+    }
+  } else {
+    for (i in 1:n_clusters){
+      outcome_list[[i]] <- mvrnorm(n = 1, mu = rep(mean_val, n_individuals_in_cluster), Sigma = semi_def_matrices[[i]][[1]] * sigma_1)
     }
   }
   return(list('design_matrices' = design_matrices, 'semi_def_matrices' = semi_def_matrices, 'outcome_list' = outcome_list))

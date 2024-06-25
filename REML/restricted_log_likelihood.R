@@ -56,35 +56,26 @@ REML_ll <- function(X, semi_def_matrix, y, params){
 
 
 
-
-#Calculating restricted log-likelihood
-REML_p_ll_blocks <- function(X, semi_def_matrix, y, params){
+profile_ll <- function(X, semi_def_matrix, y, params){
   
-  n_i <- nrow(X)
-  m <- ncol(X)
+  m <- ncol(X[[1]])
+  N_t <- Reduce('+', lapply(y, length))
+  print(m)
+  print(N_t)
   
-  #Calculating inverse covariance matrix
-  V <- omega_func(semi_def_matrix, params^2)
+  RSS_list <- Map(RSS_func, X, semi_def_matrix, y, MoreArgs = list(params))
   
-  #Log determinant V
-  log_det_V <- log(det(V))
-
+  XtVinxX_list <- Map(XtVinvX_func, X, semi_def_matrix, y, MoreArgs = list(params))
   
-  #Inverse omega
-  Vinv <- chol2inv(chol(V))
-    
-  XtVinv <- t(X) %*% Vinv
-  XtVinvX <- XtVinv %*% X
+  V_list <- Map(omega_func, semi_def_matrix, MoreArgs = list(params))
   
-  #ytVy
-  ytVinvy <- t(y) %*% Vinv %*% y
+  ld_V <- Reduce('+', lapply(lapply(V_list,det),log))
   
+  RSS_sum <- Reduce('+', RSS_list)
+  XtVinxX_sum <- Reduce('+', XtVinxX_list)
   
-  return(list('ytVinvy' = ytVinvy, 'XtVinvX' = XtVinvX, 'log_det_V' = log_det_V))
+  return(-0.5*((N_t-m)*log(RSS_sum) + log(XtVinxX_sum) + ld_V))
 }
-
-
-
 
 
 

@@ -121,8 +121,37 @@ omega_func <- function(semi_def_matrix, sigma2_vec){
 
 
 
+# Calculate RSS
+RSS_func <-  function(X, semi_def_matrix, y, params){
+  
+  #Calculating inverse covariance matrix
+  V <- omega_func(semi_def_matrix, params)
+  Vinv <- chol2inv(chol(V))
+  XtVinv <- t(X) %*% Vinv
+  XtVinvX <- XtVinv %*% X
+  
+  #Calculating betahat
+  betahat <- chol2inv(chol(XtVinvX)) %*% (XtVinv %*% y)
+  
+  res <- y - X %*% betahat
+  
+  #RSS
+  RSS <- t(res) %*% Vinv %*% res
+  
+  return(RSS)
+}
 
-
+# Calculate XtVinvX
+XtVinvX_func <- function(X, semi_def_matrix, y, params){
+  
+  #Calculating inverse covariance matrix
+  V <- omega_func(semi_def_matrix, params)
+  Vinv <- chol2inv(chol(V))
+  XtVinv <- t(X) %*% Vinv
+  XtVinvX <- XtVinv %*% X
+  
+  return(XtVinvX)
+}
 
 
 

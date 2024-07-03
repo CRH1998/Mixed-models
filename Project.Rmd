@@ -18,44 +18,62 @@ source("REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
 
 ```{r warning=FALSE}
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 100
-n_individuals_in_cluster = 30
+n_clusters = 100000
+n_individuals_in_cluster = 24
 
 #Generate large dataset
-family_dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
-                                           n_mean_param = 1, n_variance_param = 2, mean_val = 0,
-                                           sigma_0 = 5, sigma_1 = 4, sigma_2 = 2,
-                                           seed = NA)
+#dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
+#                                           n_mean_param = 1, n_variance_param = 3, mean_val = 0,
+#                                           sigma_0 = 2, sigma_1 = 5, sigma_2 = 10,
+#                                           seed = 1)
 
+
+dataset <- dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
+                                           n_mean_param = 1, n_cov_param = 3, mean_val = 0,
+                                           sigma_0 = 2, sigma_1 = 5, sigma_2 = 10,
+                                           seed = 1)
 
 #Extract relevant lists from data to run FS-algorithms
-design_matrices <- family_dataset$design_matrices
-semi_def_matrices <- family_dataset$semi_def_matrices
-outcome <- family_dataset$outcome_list
+design_matrices <- dataset$design_matrices
+semi_def_matrices <- dataset$semi_def_matrices
+outcome <- dataset$outcome_list
 
-mean(as.vector(sapply(outcome, function(x){return(x)})))
-var(as.vector(sapply(outcome, function(x){return(x)})))
+get_outcome_mean(outcome = outcome)
+get_outcome_variance(outcome = outcome)
 ```
-
-Lets have a look at the design matrices:
 
 ```{r}
-design_matrices[[1]]
+lower_bounds <- c(-Inf,0.000001,0.000001,0.000001)
+upper_bounds <- c(Inf,Inf,Inf,Inf)
+
+start <- Sys.time()
+optim(par = c(1,1,1,1), 
+      fn = log_likelihood,
+      design_matrices = design_matrices, 
+      semi_def_matrices = semi_def_matrices, 
+      outcome_list = outcome,
+      lower = lower_bounds,
+      upper = upper_bounds,
+      method = 'L-BFGS-B',
+      control=list(fnscale=-1))
+end <- Sys.time()
+end - start
 ```
 
-Lets have a look at the covariance matrices:
+
+
+We can now run the fisher scoring algorithm
+
 ```{r}
-semi_def_matrices[[1]]
+start <- Sys.time()
+mle_FS <- find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
+end <- Sys.time()
+end - start
 ```
-
-
-We can now run the fisher scoring algorithms
 
 ```{r}
-#find_mle_parameters(init_params = c(1,1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
-find_remle_parameters(init_params = c(1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome, add_small_constant = 1e-6, update_step_size = 1, small_value_threshold = 1e-6)
+mle_FS$Summary
 ```
-
 
 
 

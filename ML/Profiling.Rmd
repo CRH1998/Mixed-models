@@ -1,0 +1,56 @@
+---
+title: "Markdown project"
+author: "Christian Rubjerg Hejstvig-Larsen"
+output: html_document
+---
+
+
+```{r warning=FALSE}
+source("Function library/function_library.R", local = knitr::knit_global())
+source("Function library/generate_family_data.R", local = knitr::knit_global())
+source("ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
+```
+
+
+```{r}
+#Define number of clusters and number of individuals in each cluster
+n_clusters = 10000
+n_individuals_in_cluster = 50
+
+#Generate large dataset
+family_dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
+                                           n_mean_param = 1, n_variance_param = 3, mean_val = 0,
+                                           sigma_0 = 5, sigma_1 = 7, sigma_2 = 15,
+                                           seed = NA)
+
+
+#Extract relevant lists from data to run FS-algorithms
+design_matrices <- family_dataset$design_matrices
+semi_def_matrices <- family_dataset$semi_def_matrices
+outcome <- family_dataset$outcome_list
+find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
+```
+
+```{r}
+microbenchmark(find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome),
+               find_mle_parameters_slow(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome))
+```
+
+
+```{r}
+start <- Sys.time()
+find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
+end <- Sys.time()
+end - start
+```
+
+
+
+```{r}
+Rprof()
+find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
+
+summaryRprof()
+Rprof(NULL)
+```
+

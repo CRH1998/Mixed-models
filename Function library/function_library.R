@@ -2,17 +2,19 @@
 
 library(Matrix)               # For matrix manipulation
 library(clusterGeneration)    # For positive semi-definite matrices
+
 library(mvtnorm)              # For log-likelihood calculation
 library(lme4)                 # For mixed model
-library(microbenchmark)       # For testing function speed
+
 library(psych)                # For calculating the trace
+library(microbenchmark)       # For testing function speed
 library(profvis)              # For evaluating performance of code
-library(foreach)              # For parallel computation
-library(doParallel)           # For parallel computation
+
 library(MASS)                 # For mvrnorm()
 library(kinship2)             # For family data
 library(corpcor)              # For pseudoinverse
-library(dplyr)
+
+library(dplyr)                # For maintenance
 
 ############################################################################# 
 
@@ -108,13 +110,11 @@ get_outcome_variance <- function(outcome){
 # Calculate omega
 omega_func <- function(semi_def_matrix, sigma2_vec){
   
-  #1) Multiplying each semi-definite matrix with sigma2
-  omega_temp <- lapply(seq_along(semi_def_matrix), function(i) {
-    semi_def_matrix[[i]] * sigma2_vec[i]
-  })
+  omega <- 0
   
-  #2) Summing each term in omega_temp
-  omega <- Reduce('+', omega_temp)
+  for (i in 1:length(semi_def_matrix)){
+    omega <- omega + semi_def_matrix[[i]] * sigma2_vec[i]
+  }
   
   return(omega)
 }
@@ -160,6 +160,12 @@ XtVinvX_func <- function(X, semi_def_matrix, y, params){
 ##########################################################
 
 
+# ---------------Calculate residual-------------------
+residual_function <- function(outcomes, design_matrix, beta){
+  return(outcomes - design_matrix %*% beta)
+}
+
+
 # -------------Calculate ML S matrix----------------- (27.22)
 
 S_matrix_function <- function(semi_def_matrix, omega_inv){
@@ -184,30 +190,32 @@ S_matrix_function <- function(semi_def_matrix, omega_inv){
 
 # --------------Py matrix----------------- (27.17c)
 
-Py_func <- function(omega_inv, outcomes, design_matrix, beta){
-  return(omega_inv %*% (outcomes - design_matrix %*% beta))
+Py_func <- function(omega_inv, residual_vec){
+  return(omega_inv %*% residual_vec)
 }
 
 
-
-#-------------Calculate ML scores------------------- (27.10)
-parameter_score <- function(design_matrix, semi_def_matrix, omega_inv, Py, outcomes, beta, sigma2){
+#-------------Calculate ML scores------------------- 
+parameter_score <- function(XtVinv, semi_def_matrix, omega_inv, Py, residual_vec){
   
-  score_beta <- t(design_matrix) %*% (omega_inv %*% (outcomes - design_matrix %*% beta))
+  #Fixed effects score (27.10)
+  score_beta <- XtVinv %*% residual_vec
   
-  t_Py <- t(Py)
   
-  score_sigma <- sapply(seq_along(semi_def_matrix), function(i) {
-    0.5 * (-sum(omega_inv * semi_def_matrix[[i]]) + ((t_Py %*% semi_def_matrix[[i]]) %*% Py))
-  })
+  #Random effects score (27.14b, 27.17c)
+  score_sigma <- rep(NA, length(semi_def_matrix))
+  
+  for (i in 1:length(semi_def_matrix)){
+    trVinvVi <- sum(omega_inv * semi_def_matrix[[i]])
+    PytViPy <- crossprod(Py, semi_def_matrix[[i]]) %*% Py
+    
+    score_sigma[i] <- 0.5 * (PytViPy-trVinvVi)
+  }
   
   score <- c(score_beta, score_sigma)
   
   return(score)
 }
-
-
-
 
 
 

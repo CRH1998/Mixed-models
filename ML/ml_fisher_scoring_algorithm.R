@@ -38,15 +38,19 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
   # Inverting omega
   omega_inv <- chol2inv(chol(omega))
   
+  #Calculating residual vector
+  residual_vec <- residual_function(outcomes = outcomes, design_matrix = design_matrix, beta = beta)
   
   
   #--------------Calculating Py matrix-----------------
-  Py <- Py_func(omega_inv = omega_inv, outcomes = outcomes, design_matrix = design_matrix, beta = beta)
+  Py <- Py_func(omega_inv = omega_inv, residual_vec = residual_vec)
   
   
   
   #-------------Calculating mean value parameters----- (27.21)
-  M <- t(design_matrix) %*% omega_inv %*% design_matrix
+  XtVinv <- crossprod(design_matrix, omega_inv)
+  
+  M <- XtVinv %*% design_matrix
   
   
   
@@ -57,13 +61,11 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
   #-------------Calculating scores-------------------
   
   
-  score <- parameter_score(design_matrix = design_matrix, 
+  score <- parameter_score(XtVinv = XtVinv, 
                            omega_inv = omega_inv,
                            semi_def_matrix = semi_def_matrix,
                            Py = Py, 
-                           outcomes = outcomes, 
-                           beta = beta, 
-                           sigma2 = sigma2)
+                           residual_vec = residual_vec)
   
   
   return(list('M' = M, 'S' = S, 'score' = score))
@@ -76,7 +78,7 @@ score_fisher_function <- function(design_matrix, semi_def_matrix, outcomes, para
 #       ML fisher scoring algorithm
 #-------------------------------------------
 find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices, outcome_list, update_step_size = 1, max_iter = 10000, tolerance = 1e-12, 
-                                small_value_threshold = 1e-12, add_small_constant = 1e-12){
+                                small_value_threshold = 1e-9, add_small_constant = 1e-12){
   
   
   for (iter in 1:max_iter) {
@@ -85,8 +87,18 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
     
     
     # Sum blocks
-    M_sum <- Reduce('+',lapply(out, function(x) x$M))
-    S_sum <- Reduce('+',lapply(out, function(x) x$S))
+    M_sum <- 0
+    for (i in 1:length(out)){
+      M_sum <- M_sum + out[[i]]$M
+    }
+    
+    S_sum <- 0
+    for (i in 1:length(out)){
+      S_sum <- S_sum + out[[i]]$S
+    }
+    
+    #M_sum <- Reduce('+',lapply(out, function(x) x$M))
+    #S_sum <- Reduce('+',lapply(out, function(x) x$S))
     
     
     # Setting very small values to 0
@@ -102,7 +114,12 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
     fisher_inv <- bdiag(chol2inv(chol(M_sum)), chol2inv(chol(S_sum)))
     
     # Sum scores
-    score <- rowSums(sapply(out, function(x) x$score))
+    score <- 0
+    for (i in 1:length(out)){
+      score <- score + out[[i]]$score
+    }
+    
+    #score <- rowSums(sapply(out, function(x) x$score))
     
     #Calculate update step
     update_step <- fisher_inv %*% score
@@ -115,8 +132,26 @@ find_mle_parameters <- function(init_params, design_matrices, semi_def_matrices,
     
     # Update parameters for the next iteration
     init_params <- init_params + update_step_size * update_step
+    #init_params[init_params < 0] <- 0.001
   }
   
-  return(init_params)
+  summary <- data.frame(matrix(ncol = 5, nrow = 0))
+  colnames(summary) <- c("Parameter", "Estimate", "SE", "Lower_CI_bound", "Upper_CI_bound")
+  
+  for (i in 1:length(init_params)){
+    Parameter <- i
+    Estimate <- init_params[i]
+    SE <- sqrt(fisher_inv[i,i])
+    Lower_CI_bound <- Estimate - 1.96*SE
+    Upper_CI_bound <- Estimate + 1.96*SE
+      
+    summary[nrow(summary) + 1,] <- c(Parameter, Estimate, SE, Lower_CI_bound, Upper_CI_bound)
+  }
+  
+  
+  return(list('Estimates' = init_params, 'Inverse fisher' = fisher_inv, 'Score' = score, 'Summary' = summary))
 }
+
+
+
 

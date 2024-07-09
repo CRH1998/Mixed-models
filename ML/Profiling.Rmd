@@ -15,20 +15,26 @@ source("ML/ml_fisher_scoring_algorithm.R", local = knitr::knit_global())
 ```{r}
 #Define number of clusters and number of individuals in each cluster
 n_clusters = 10000
-n_individuals_in_cluster = 50
+n_individuals_in_cluster = 20
 
 #Generate large dataset
 family_dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
-                                           n_mean_param = 1, n_variance_param = 3, mean_val = 0,
-                                           sigma_0 = 5, sigma_1 = 7, sigma_2 = 15,
+                                           n_mean_param = 3, 
+                                           variance_param = c('R', 'H', 'K'), 
+                                           beta_0 = 5, beta_1 = 10, beta_2 = 15,
+                                           sigma_R = 5, sigma_H = 7, sigma_K = 15,
                                            seed = NA)
 
 
-#Extract relevant lists from data to run FS-algorithms
+#Extract relevant lists from data to run FS-algorithm
 design_matrices <- family_dataset$design_matrices
 semi_def_matrices <- family_dataset$semi_def_matrices
 outcome <- family_dataset$outcome_list
-find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
+
+get_outcome_mean(outcome)
+get_outcome_variance(outcome)
+
+find_mle_parameters(init_params = c(1,1,1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
 ```
 
 ```{r}

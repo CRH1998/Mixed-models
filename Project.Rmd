@@ -18,20 +18,20 @@ source("REML/reml_fisher_scoring_algorithm.R", local = knitr::knit_global())
 
 ```{r warning=FALSE}
 #Define number of clusters and number of individuals in each cluster
-n_clusters = 100000
-n_individuals_in_cluster = 24
+n_clusters = 10000
+n_individuals_in_cluster = 30
 
 #Generate large dataset
-#dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
-#                                           n_mean_param = 1, n_variance_param = 3, mean_val = 0,
-#                                           sigma_0 = 2, sigma_1 = 5, sigma_2 = 10,
-#                                           seed = 1)
-
-
-dataset <- dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
-                                           n_mean_param = 1, n_cov_param = 3, mean_val = 0,
+dataset <- family_dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
+                                           n_mean_param = 1, n_variance_param = 3, mean_val = 0,
                                            sigma_0 = 2, sigma_1 = 5, sigma_2 = 10,
                                            seed = 1)
+
+
+#dataset <- dataset_generator(n_clusters = n_clusters, n_individuals_in_cluster = n_individuals_in_cluster,
+#                                           n_mean_param = 1, n_cov_param = 3, mean_val = 0,
+#                                           sigma_0 = 2, sigma_1 = 5, sigma_2 = 10,
+#                                           seed = 1)
 
 #Extract relevant lists from data to run FS-algorithms
 design_matrices <- dataset$design_matrices
@@ -42,36 +42,43 @@ get_outcome_mean(outcome = outcome)
 get_outcome_variance(outcome = outcome)
 ```
 
+We check the time it takes to optimize the log likelihood using standard `optim()` function.
+
 ```{r}
 lower_bounds <- c(-Inf,0.000001,0.000001,0.000001)
 upper_bounds <- c(Inf,Inf,Inf,Inf)
 
-start <- Sys.time()
-optim(par = c(1,1,1,1), 
-      fn = log_likelihood,
-      design_matrices = design_matrices, 
-      semi_def_matrices = semi_def_matrices, 
-      outcome_list = outcome,
-      lower = lower_bounds,
-      upper = upper_bounds,
-      method = 'L-BFGS-B',
-      control=list(fnscale=-1))
-end <- Sys.time()
-end - start
+start_optim <- Sys.time()
+optim_log_lik <- optim(par = c(1,1,1,1), 
+                       fn = log_likelihood,
+                       design_matrices = design_matrices, 
+                       semi_def_matrices = semi_def_matrices, 
+                       outcome_list = outcome,
+                       lower = lower_bounds,
+                       upper = upper_bounds,
+                       method = 'L-BFGS-B',
+                       control=list(fnscale=-1))
+end_optim <- Sys.time()
+optim_time <- end_optim - start_optim
 ```
 
-
-
-We can now run the fisher scoring algorithm
+We then run the fisher scoring algorithm and time it
 
 ```{r}
-start <- Sys.time()
+start_FS <- Sys.time()
 mle_FS <- find_mle_parameters(init_params = c(1,1,1,1), design_matrices = design_matrices, semi_def_matrices = semi_def_matrices, outcome_list = outcome)
-end <- Sys.time()
-end - start
+end_FS <- Sys.time()
+FS_time <- end_FS - start_FS
+FS_time
 ```
 
+The fisher scoring algorithm also gives us asymptotic confidence intervals using the fisher information matrix.
+
+
 ```{r}
+mle_FS$Estimates
+mle_FS$`Inverse fisher`
+mle_FS$Score
 mle_FS$Summary
 ```
 

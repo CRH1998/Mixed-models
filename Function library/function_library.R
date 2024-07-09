@@ -89,6 +89,9 @@ matrix_mult_list_by_matrix <- function(matrix, list, mult_by_right = F){
 }
 
 
+
+
+
 #-------------------------------------------
 #         List helper functions
 #-------------------------------------------
@@ -100,6 +103,9 @@ get_outcome_mean <- function(outcome){
 get_outcome_variance <- function(outcome){
   return(var(as.vector(sapply(outcome, function(x){return(x)}))))
 }
+
+
+
 
 
 
@@ -141,6 +147,8 @@ RSS_func <-  function(X, semi_def_matrix, y, params){
   return(RSS)
 }
 
+
+
 # Calculate XtVinvX
 XtVinvX_func <- function(X, semi_def_matrix, y, params){
   
@@ -152,6 +160,8 @@ XtVinvX_func <- function(X, semi_def_matrix, y, params){
   
   return(XtVinvX)
 }
+
+
 
 
 
